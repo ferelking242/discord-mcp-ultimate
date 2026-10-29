@@ -43,6 +43,35 @@ test("a module exposes no handler for a tool it does not own", () => {
   assert.equal(messages.handlers.get("discord_not_a_messages_tool"), undefined);
 });
 
+test("discord_send_poll rejects fewer than 2 or more than 10 answers", async () => {
+  const handler = messages.handlers.get("discord_send_poll")!;
+  await assert.rejects(
+    () => handler({ channel_id: VALID_ID, question: "Q?", answers: ["only one"] }),
+    ZodError,
+  );
+  await assert.rejects(
+    () =>
+      handler({
+        channel_id: VALID_ID,
+        question: "Q?",
+        answers: Array.from({ length: 11 }, (_, i) => `a${i}`),
+      }),
+    ZodError,
+  );
+});
+
+test("discord_send_poll schema caps question, answer and duration at Discord's limits", () => {
+  const poll = messages.definitions.find((d) => d.name === "discord_send_poll");
+  assert.ok(poll, "discord_send_poll should be defined");
+  const props = (poll.inputSchema as { properties: Record<string, Record<string, unknown>> })
+    .properties;
+  assert.equal(props.question.maxLength, 300, "Discord caps the poll question at 300");
+  assert.equal(props.answers.minItems, 2);
+  assert.equal(props.answers.maxItems, 10, "Discord caps a poll at 10 answers");
+  assert.equal(props.duration_hours.minimum, 1);
+  assert.equal(props.duration_hours.maximum, 768, "Discord caps poll duration at 768 hours");
+});
+
 test("bounded integer fields advertise integer + min/max + default in the inputSchema", () => {
   const read = messages.definitions.find((d) => d.name === "discord_read_messages");
   const limit = (read!.inputSchema as { properties: Record<string, Record<string, unknown>> })

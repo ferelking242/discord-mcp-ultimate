@@ -278,6 +278,37 @@ and `ping: "role"` additionally requires `ping_role_id`.
 
 ---
 
+## 11. Native polls — `discord_send_poll` in `src/tools/messages.ts`
+
+**1 tool.** `discord_send_poll`.
+
+Discord has polls in its own API, so a third-party poll bot is redundant. The tool
+sends a native poll: Discord renders the vote UI, tallies the votes and closes it
+on schedule.
+
+| Field               | Constraint                      |
+| ------------------- | ------------------------------- |
+| `question`          | max 300 characters              |
+| `answers`           | 2 to 10, max 55 characters each |
+| `duration_hours`    | 1 to 768, defaults to 24        |
+| `allow_multiselect` | false by default                |
+
+The constraints are enforced in the Zod schema, so an out-of-range call fails
+locally with a clear message instead of a Discord `50035` form error.
+
+```jsonc
+// "Which language should we add next?"
+{
+  "channel_id": "...",
+  "question": "Which language should we add next?",
+  "answers": ["한국어", "Nederlands", "Polski"],
+  "duration_hours": 168,
+  "allow_multiselect": false,
+}
+```
+
+---
+
 ## Environment variables added
 
 None. Every new tool uses `DISCORD_TOKEN`, `DISCORD_ALLOWED_GUILDS`,

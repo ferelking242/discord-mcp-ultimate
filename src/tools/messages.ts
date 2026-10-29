@@ -181,6 +181,56 @@ const tools = [
     },
   }),
   defineTool({
+    name: "discord_send_poll",
+    description:
+      "Send a native Discord poll to a channel. Discord renders it with its own vote UI and tallies the results, so no third-party poll bot is needed. Requires the Send Polls permission. Returns the poll message ID and its answer labels.",
+    annotations: {
+      title: "Send poll",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    schema: z.object({
+      channel_id: channelId,
+      question: z.string().max(300).describe("The poll question (max 300 characters)."),
+      answers: z
+        .array(z.string().max(55))
+        .min(2)
+        .max(10)
+        .describe("Answer choices, 2 to 10 (max 55 characters each)."),
+      duration_hours: z
+        .number()
+        .min(1)
+        .max(768)
+        .optional()
+        .describe("How long the poll stays open, in hours (1 to 768). Discord defaults to 24."),
+      allow_multiselect: z
+        .boolean()
+        .optional()
+        .describe("Let members pick several answers instead of one."),
+    }),
+    handle: async ({ channel_id, question, answers, duration_hours, allow_multiselect }) => {
+      const channel = await getTextChannel(channel_id);
+      const sent = await channel.send({
+        poll: {
+          question: { text: question },
+          answers: answers.map((text) => ({ text })),
+          duration: duration_hours ?? 24,
+          allowMultiselect: allow_multiselect ?? false,
+        },
+      });
+      return structured({
+        message_id: sent.id,
+        channel_id: sent.channelId,
+        question,
+        answers,
+        duration_hours: duration_hours ?? 24,
+        allow_multiselect: allow_multiselect ?? false,
+      });
+    },
+  }),
+  defineTool({
     name: "discord_reply_message",
     description:
       "Reply to a specific message, attaching a reply reference so clients show it as a threaded reply. Use discord_send_message for a standalone message with no reference. Requires the Send Messages permission. Returns the new reply's message ID.",
