@@ -9,7 +9,7 @@ import {
 import { z } from "zod";
 import { buildChannelCreateOptions } from "../channelOptions.js";
 import { assertBotPermission, getGuild, parsePermissionNames } from "../client.js";
-import { isDuplicateFingerprint, recordAction, runPaced } from "../safety.js";
+import { confirmationPhrase, isDuplicateFingerprint, recordAction, runPaced } from "../safety.js";
 import { entityKindSchema, styleName, type EntityKind } from "../styleGenerator.js";
 import { defineModule, defineTool, guildId, intIn, structured } from "./define.js";
 
@@ -889,9 +889,9 @@ const tools = [
       channel_ids: z.array(z.string()).optional().describe("Channel IDs to delete."),
       role_ids: z.array(z.string()).optional().describe("Role IDs to delete."),
       confirmation: z
-        .literal("CONFIRM DELETE")
+        .literal(confirmationPhrase("delete"))
         .optional()
-        .describe('Type exactly "CONFIRM DELETE" to apply. Omit to preview only.'),
+        .describe(`Type exactly "${confirmationPhrase("delete")}" to apply. Omit to preview only.`),
     }),
     outputSchema: z.object({
       mode: z.string(),

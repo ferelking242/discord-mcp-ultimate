@@ -42,26 +42,6 @@ export function resolveGate(args: { confirm?: boolean; dry_run?: boolean }): Gat
   };
 }
 
-/** Renders a preview report as the single text block every tool returns. */
-export function previewResult(
-  plan: Record<string, unknown>,
-  extra?: string,
-): {
-  content: { type: "text"; text: string }[];
-  structuredContent: Record<string, unknown>;
-} {
-  const payload = { mode: "preview", applied: false, ...plan };
-  return {
-    content: [
-      {
-        type: "text",
-        text: `🔍 Preview (no change applied).\n${JSON.stringify(payload, null, 2)}${extra ? `\n${extra}` : ""}`,
-      },
-    ],
-    structuredContent: payload,
-  };
-}
-
 // ─── Action audit trail ────────────────────────────────────────────────────────
 
 export interface AuditRecord {
@@ -171,38 +151,30 @@ export async function runPaced<T, R>(
   return { results, failures };
 }
 
-// ─── Confirmation of high-risk operations ──────────────────────────────────────
-
-/** Operations that additionally require an explicit `confirm` acknowledgement. */
-export type HighRiskOperation = "delete" | "mass_ban" | "permission_overwrite" | "restore";
-
-const HIGH_RISK_PHRASES: Record<HighRiskOperation, string> = {
-  delete: "DELETE",
-  mass_ban: "BAN",
-  permission_overwrite: "PERMISSIONS",
-  restore: "RESTORE",
-};
+// ─── Confirmation of irreversible operations ───────────────────────────────────
 
 /**
- * Guards an irreversible operation behind a typed acknowledgement.
+ * The single source of truth for the typed acknowledgement an irreversible
+ * operation requires.
  *
- * The caller must pass `confirmation` equal to the expected phrase (see
- * {@link confirmationPhrase}). This is deliberately more friction than
- * `dry_run`: it makes an accidental mass deletion impossible to trigger from a
- * single malformed tool call.
+ * Tools enforce this through their Zod schema (`.literal(confirmationPhrase(...))`)
+ * rather than a runtime check, so the requirement is advertised in the tool's
+ * `inputSchema` and a wrong phrase is rejected before the server even tries to
+ * reach Discord. A schema-level constraint is also visible to the model in
+ * `tools/list`, which a handler-side assertion would not be.
+ *
+ * A literal phrase rather than a boolean is deliberate: a boolean can be
+ * defaulted, and a defaulted boolean is a decision nobody made. A phrase has to
+ * be produced by the model, which means the model had to decide to produce it.
  */
-export function confirmationPhrase(operation: HighRiskOperation): string {
-  return `CONFIRM ${HIGH_RISK_PHRASES[operation]}`;
-}
+export const CONFIRMATION_PHRASES = {
+  delete: "CONFIRM DELETE",
+} as const;
 
-export function assertConfirmation(
-  operation: HighRiskOperation,
-  provided: string | undefined,
-): void {
-  const expected = confirmationPhrase(operation);
-  if (provided !== expected) {
-    throw new Error(
-      `This operation is irreversible and needs explicit confirmation. Pass confirmation: "${expected}" (received ${provided === undefined ? "nothing" : `"${provided}"`}).`,
-    );
-  }
+/** The operations that need a typed acknowledgement. */
+export type ConfirmableOperation = keyof typeof CONFIRMATION_PHRASES;
+
+/** The exact string a caller must pass in `confirmation` to proceed. */
+export function confirmationPhrase(operation: ConfirmableOperation): string {
+  return CONFIRMATION_PHRASES[operation];
 }

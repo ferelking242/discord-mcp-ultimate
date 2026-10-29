@@ -1,17 +1,22 @@
 {
-  "name": "@pasympa/discord-mcp",
-  "version": "2.2.0",
-  "mcpName": "io.github.PaSympa/discord-mcp",
-  "description": "A lightweight, multi-guild Discord MCP server with 95+ tools",
+  "name": "discord-mcp-ultimate",
+  "version": "3.0.0",
+  "mcpName": "io.github.ferelking242/discord-mcp-ultimate",
+  "description": "A Discord MCP server with 172 tools: full server administration, Unicode name styling, a resumable server architect, AutoMod, emoji and sticker management, structure backup, diagnostics and a safety layer with preview-before-apply",
   "main": "dist/index.js",
   "type": "commonjs",
   "bin": {
+    "discord-mcp-ultimate": "dist/index.js",
     "discord-mcp": "dist/index.js"
   },
   "files": [
     "dist",
     "SECURITY.md",
-    "Dockerfile"
+    "Dockerfile",
+    "docs",
+    "README.md",
+    "LICENSE",
+    ".env.example"
   ],
   "scripts": {
     "build": "tsc",
@@ -36,15 +41,15 @@
     "windsurf",
     "claude-desktop"
   ],
-  "author": "PaSympa",
+  "author": "ferelking242 (fork of PaSympa/discord-mcp by L\u00e9andre Moreau)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PaSympa/discord-mcp"
+    "url": "https://github.com/ferelking242/discord-mcp-ultimate"
   },
-  "homepage": "https://github.com/PaSympa/discord-mcp#readme",
+  "homepage": "https://github.com/ferelking242/discord-mcp-ultimate#readme",
   "bugs": {
-    "url": "https://github.com/PaSympa/discord-mcp/issues"
+    "url": "https://github.com/ferelking242/discord-mcp-ultimate/issues"
   },
   "engines": {
     "node": ">=22.0.0"

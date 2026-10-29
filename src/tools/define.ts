@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isGuildAllowed } from "../client.js";
+import { confirmationPhrase } from "../safety.js";
 import type { ToolModule, ToolDefinition, ToolResult, ToolAnnotations } from "./types.js";
 
 /** A Discord snowflake ID: a 17–20 digit string. Reused by every tool that takes an ID. */
@@ -50,9 +51,11 @@ export const imageInput = z
  * phrase forces the value into the model's output, which is the whole point.
  */
 export const confirmation = z
-  .literal("CONFIRM DELETE")
+  .literal(confirmationPhrase("delete"))
   .optional()
-  .describe('Type the literal string "CONFIRM DELETE" to apply. Omit to preview only.');
+  .describe(
+    `Type the literal string "${confirmationPhrase("delete")}" to apply. Omit to preview only.`,
+  );
 
 /**
  * Converts a zod schema into the JSON Schema shape MCP sends over the wire.
@@ -158,7 +161,7 @@ export function defineTool<S extends z.ZodType>(tool: {
             content: [
               {
                 type: "text",
-                text: `❌ Internal error: ${tool.name} produced output that does not match its declared outputSchema. Please report this at https://github.com/PaSympa/discord-mcp/issues.`,
+                text: `❌ Internal error: ${tool.name} produced output that does not match its declared outputSchema. Please report this at https://github.com/ferelking242/discord-mcp-ultimate/issues.`,
               },
             ],
             isError: true,

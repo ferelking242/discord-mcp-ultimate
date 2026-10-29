@@ -1,5 +1,71 @@
 # Changelog
 
+## 3.0.0 — Discord MCP Ultimate
+
+Fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) 2.2.0 (MIT).
+The 99 tools in the imported baseline are preserved unchanged. This release adds
+73 tools, taking the total to 172, and introduces a safety layer the new tools go
+through.
+
+### Added
+
+**Server settings** (`src/tools/guildSettings.ts`, 24 tools) — server name, icon,
+banner, description, splash, verification level, explicit content filter,
+notification defaults, locale, AFK channel and timeout, system/rules/public-updates/safety-alerts
+channels, system channel notice flags, premium progress bar, Community, widget,
+welcome screen, onboarding, plus a permission preflight report.
+
+**Bot profile** (`src/tools/botProfile.ts`, 8 tools) — per-server nickname,
+per-server avatar, global avatar, global username, application icon and
+description, and `discord_get_bot_profile_limits`, which documents what a bot
+cannot change (banner, global bio, accent colour) and why.
+
+**Unicode name styling** (`src/styleGenerator.ts`, `src/tools/style.ts`, 4 tools) —
+12 decoration styles, a deterministic naming plan for a whole server, and an
+apply tool that previews by default. Names are capped at Discord's 100-character
+limit by trimming the slug rather than the decoration, and zero-width characters
+are stripped.
+
+**Server architect** (`src/tools/serverArchitect.ts`, 10 tools) — plan, read,
+compare, apply, repair, explain limits, and template create/list/delete, plus a
+guarded structure delete. Steps carry stable keys so a failed run can be
+repaired; ordering is roles → categories → channels, because permission
+overwrites reference role IDs.
+
+**AutoMod** (`src/tools/automod.ts`, 6 tools), **emoji and stickers**
+(`src/tools/expressions.ts`, 8 tools), **structure backup** (`src/tools/backup.ts`,
+3 tools), **diagnostics** (`src/tools/diagnostics.ts`, 6 tools) and **scheduling**
+(`src/tools/scheduler.ts`, 4 tools).
+
+**Safety layer** (`src/safety.ts`) — preview-before-apply gating, a typed
+confirmation phrase for bulk deletion, an in-process audit trail, duplicate-plan
+suppression, and paced bulk loops that isolate per-item failures.
+
+### Fixed
+
+Four defects found by the new test suites:
+
+- `discord_verify_setup` could never run without a token, because the server gated
+  every call behind a connection check. Diagnostic and pure tools now bypass it.
+- Malformed arguments were reported as connection failures. Argument validation
+  now runs before the connection check.
+- `discord_enable_community` passed a bare feature list to `guild.edit()`, which
+  Discord rejects with an opaque 400. It now checks the required channels first
+  and returns what is missing.
+- `discord_get_guild_settings` read `guild.premiumProgressBarEnabled`, which does
+  not exist on a Guild, and omitted `member_count`.
+
+### Changed
+
+- `ToolModule` gained an optional `validators` map so the server can validate a
+  call's arguments before connecting.
+- `discord_verify_setup` reports `token_length` (never the token value) and
+  `tool_count`.
+- Backup schemas moved from `z.object` to `z.strictObject`, so an unknown key in a
+  backup is rejected rather than ignored.
+- Package renamed to `discord-mcp-ultimate`, version 3.0.0, with `mcpName`,
+  `repository`, `homepage` and `bugs` updated for the fork.
+
 ## [2.2.0] - 2026-09-03
 
 ### Added

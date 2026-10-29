@@ -136,3 +136,42 @@ test("an unknown tool name is an InvalidParams error, not a silent success", asy
   await client.close();
   await server.close();
 });
+
+test("the typed delete confirmation is enforced by the schema, not by a handler", async () => {
+  const { client, server } = await connect();
+  const def = getAllDefinitions().find((d) => d.name === "discord_architect_delete_structure")!;
+  const props = def.inputSchema.properties as Record<string, Record<string, unknown>>;
+  assert.equal(props.confirmation!.const, "CONFIRM DELETE", "the phrase must be in the schema");
+  assert.equal(props.confirmation!.default, undefined, "the phrase must never be defaulted");
+
+  // A near-miss is rejected before the server tries to reach Discord.
+  for (const wrong of ["DELETE", "confirm delete", "CONFIRM", "CONFIRM DELETE "]) {
+    const result = await client.callTool({
+      name: "discord_architect_delete_structure",
+      arguments: {
+        guild_id: "111111111111111111",
+        channel_ids: ["333333333333333333"],
+        confirmation: wrong,
+      },
+    });
+    assert.equal(result.isError, true, `${JSON.stringify(wrong)} must be rejected`);
+  }
+
+  // Omitting the phrase is not a schema error. Without a token the call still
+  // stops at the connection gate, because every Discord-backed tool connects
+  // eagerly; the tool's own preview logic is covered by test/serverArchitect.test.ts
+  // with a mocked guild.
+  const preview = await client.callTool({
+    name: "discord_architect_delete_structure",
+    arguments: { guild_id: "111111111111111111", channel_ids: ["333333333333333333"] },
+  });
+  assert.equal(preview.isError, true);
+  assert.match(preview.content[0]!.text as string, /DISCORD_TOKEN is required/);
+  assert.ok(
+    !/confirmation/.test(preview.content[0]!.text as string),
+    "omitting the phrase must not be reported as a confirmation error",
+  );
+
+  await client.close();
+  await server.close();
+});

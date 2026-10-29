@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.PaSympa/discord-mcp",
-  "description": "A lightweight, multi-guild Discord MCP server with 95+ tools",
+  "name": "io.github.ferelking242/discord-mcp-ultimate",
+  "description": "A Discord MCP server with 172 tools: server administration, Unicode name styling, a resumable server architect, AutoMod, emoji and sticker management, structure backup and diagnostics",
   "repository": {
-    "url": "https://github.com/PaSympa/discord-mcp",
+    "url": "https://github.com/ferelking242/discord-mcp-ultimate",
     "source": "github"
   },
-  "version": "2.2.0",
+  "version": "3.0.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@pasympa/discord-mcp",
-      "version": "2.2.0",
+      "identifier": "discord-mcp-ultimate",
+      "version": "3.0.0",
       "transport": {
         "type": "stdio"
       },
@@ -27,7 +27,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/pasympa/discord-mcp:2.2.0",
+      "identifier": "docker.io/ferelking242/discord-mcp-ultimate:3.0.0",
       "transport": {
         "type": "stdio"
       },

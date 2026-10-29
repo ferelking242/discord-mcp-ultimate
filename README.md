@@ -1,55 +1,160 @@
 <div align="center">
 
-# Discord MCP Server
+# Discord MCP Ultimate
 
-**A lightweight, multi-guild Discord MCP server with 95+ tools**
+**A Discord MCP server with 172 tools — full server administration, driven by natural language**
 
-[![npm](https://img.shields.io/npm/v/@pasympa/discord-mcp)](https://www.npmjs.com/package/@pasympa/discord-mcp)
-[![License](https://img.shields.io/github/license/PaSympa/discord-mcp)](LICENSE)
+[![License](https://img.shields.io/github/license/ferelking242/discord-mcp-ultimate)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-green)](https://nodejs.org)
 [![Discord.js](https://img.shields.io/badge/discord.js-v14-5865F2)](https://discord.js.org)
 [![MCP](https://img.shields.io/badge/MCP-compatible-purple)](https://modelcontextprotocol.io)
 
-[![discord-mcp MCP server](https://glama.ai/mcp/servers/PaSympa/discord-mcp/badges/score.svg)](https://glama.ai/mcp/servers/PaSympa/discord-mcp)
-
-Manage your entire Discord server from **Claude Desktop**, **Claude Code**, **Cursor**, **VS Code Copilot**, or any MCP-compatible client.
-Messages, channels, roles, permissions, moderation, forums, webhooks, all through natural language.
+Manage an entire Discord server from **Claude Desktop**, **Claude Code**, **Cursor**, **VS Code Copilot**, or any MCP-compatible client.
+Messages, channels, roles, permissions, moderation, server settings, AutoMod, emoji and stickers, and a server architect that builds a structure from a plan.
 
 </div>
 
 ---
 
-## Why this one?
+## What this is
 
-- **95+ tools**: messages, channels, roles, permissions, moderation, forums, webhooks, scheduled events, invites, DMs, embeds, and more
-- **Multi-guild**: works across multiple servers, no `GUILD_ID` lock-in
-- **Lightweight**: TypeScript + Node.js, ~70kB package, ~73MB Docker image (vs 400MB+ for Java alternatives)
-- **Modular**: clean architecture, easy to extend with new tools
-- **Two install methods**: npm or Docker, your choice
+A fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) 2.2.0, MIT licensed.
+The 99 tools from that baseline are **preserved unchanged**. This fork adds 73
+tools, taking the total to 172, and adds a safety layer that the new tools go
+through.
+
+|                                                                     | Baseline 2.2.0      | This fork           |
+| ------------------------------------------------------------------- | ------------------- | ------------------- |
+| Tools                                                               | 99                  | **172**             |
+| Server settings (name, icon, banner, Community, widget, onboarding) | —                   | 24 tools            |
+| Bot profile management                                              | —                   | 8 tools             |
+| Unicode name styling                                                | —                   | 4 tools             |
+| Server architect (plan, compare, apply, repair)                     | —                   | 10 tools            |
+| AutoMod                                                             | —                   | 6 tools             |
+| Emoji and stickers                                                  | —                   | 8 tools             |
+| Structure backup and restore                                        | —                   | 3 tools             |
+| Diagnostics and audit trail                                         | —                   | 6 tools             |
+| Scheduling and announcements                                        | —                   | 4 tools             |
+| Preview-before-apply gating                                         | partial (`dry_run`) | on every added tool |
+
+Full inventory: [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md).
+What each new tool does: [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md).
 
 ---
 
-## Quick Start
-
-Add this to your MCP client config and replace `YOUR_TOKEN_HERE` with your bot token:
+## Quick start
 
 ```json
 {
   "mcpServers": {
     "discord": {
-      "command": "npx",
-      "args": ["-y", "@pasympa/discord-mcp"],
+      "command": "node",
+      "args": ["/absolute/path/to/discord-mcp-ultimate/dist/index.js"],
       "env": {
-        "DISCORD_TOKEN": "YOUR_TOKEN_HERE"
+        "DISCORD_TOKEN": "YOUR_BOT_TOKEN_HERE"
       }
     }
   }
 }
 ```
 
-No install needed, `npx` handles everything.
+```bash
+git clone https://github.com/ferelking242/discord-mcp-ultimate.git
+cd discord-mcp-ultimate
+npm ci && npm run build
+```
 
-> Don't have a bot yet? See [Creating Your Discord Bot](#creating-your-discord-bot).
+No bot yet? [docs/INSTALLATION.md](docs/INSTALLATION.md) covers creating the
+application, the intents, the exact permission list, and the invite URL.
+
+Once connected, ask it to run `discord_verify_setup` — it takes no arguments and
+tells you whether the token, the intents, the toolsets and the connection are all
+in order.
+
+---
+
+## What it can do
+
+### Server administration
+
+Full server-level settings, which the baseline did not cover: rename the server,
+change its icon and banner, set the description, splash, verification level,
+explicit content filter, notification defaults, locale, AFK channel and timeout,
+system/rules/public-updates/safety-alerts channels, the system channel notice
+flags, the premium progress bar, Community, the widget, the welcome screen and
+onboarding.
+
+Each tool reports what Discord actually returned, and states the limits: a banner
+needs boost level 2, a description needs a discoverable or Community server,
+Community needs a rules channel and a public-updates channel.
+
+### Bot profile, audited separately
+
+Four things that are easy to conflate, kept apart on purpose:
+
+| Field                                 | Scope       | Settable?                                 |
+| ------------------------------------- | ----------- | ----------------------------------------- |
+| Server name / icon                    | one server  | yes, Manage Server                        |
+| Bot nickname                          | one server  | yes                                       |
+| Bot global username / avatar          | all servers | yes                                       |
+| Bot banner, global bio, accent colour | global      | **no** — the bot API does not expose them |
+
+`discord_get_bot_profile_limits` returns the changeable and non-changeable lists
+with reasons, so "can you change my banner?" gets an answer from a documented
+list rather than a guess.
+
+### Unicode name styling
+
+Twelve decoration styles for categories, channels, roles, forums and announcement
+channels — minimalist, gaming, cyberpunk, futuristic, luxury, fantasy, anime,
+elegant, geometric, bordered, emoji-led and fullwidth.
+
+```
+✦・announcements
+「📢」・news
+╭・community・╮
+💬︱general-chat
+୨୧・suggestions・୨୧
+```
+
+Deterministic (the same input always produces the same output, so re-running a
+theme converges), collision-checked, 100-character capped, and stripped of
+zero-width characters.
+
+**Stated plainly, in every one of these tool descriptions:** Discord has no
+per-server font setting and no API for one. This decorates text with Unicode
+characters. It is not a font engine.
+
+### Server architect
+
+Describe the server you want and the architect turns it into an ordered plan,
+diffs it against what exists, and creates only what is missing. It is idempotent
+and resumable: a run that fails halfway can be repaired by re-running, because
+every step has a stable key and failures come back with their index.
+
+Ordering is fixed — roles, then categories, then channels — because channel
+permission overwrites reference role IDs that must already exist.
+
+**A bot cannot create a new Discord server.** That needs a user OAuth2 token.
+`discord_architect_explain_limits` says so and gives the workflow that does work:
+create the server yourself, invite the bot, then apply the plan.
+
+### Safety
+
+Every added mutating tool previews by default. `confirm: true` applies. Bulk
+deletion additionally requires the literal string `CONFIRM DELETE`, enforced by
+the tool's JSON Schema so a model sees the requirement in `tools/list` before it
+calls.
+
+Also included: permission preflight with readable errors, role-hierarchy checks,
+`DISCORD_ALLOWED_GUILDS` scoping, duplicate-plan suppression, paced bulk loops,
+and an audit trail readable through `discord_read_audit_trail`.
+
+Honest limits are documented rather than glossed: the audit trail is in-process
+and capped at 500 entries; a structure backup does not contain messages; deleted
+entities are not recoverable.
+
+Details: [docs/SECURITY.md](docs/SECURITY.md).
 
 ---
 
@@ -58,10 +163,26 @@ No install needed, `npx` handles everything.
 <details>
 <summary><strong>Claude Desktop</strong></summary>
 
-Add the config above to your `claude_desktop_config.json`:
+Add to `claude_desktop_config.json`:
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "discord": {
+      "command": "node",
+      "args": ["/absolute/path/to/discord-mcp-ultimate/dist/index.js"],
+      "env": {
+        "DISCORD_TOKEN": "YOUR_BOT_TOKEN_HERE",
+        "DISCORD_GUILD_MEMBERS": "true",
+        "DISCORD_MESSAGE_CONTENT": "true"
+      }
+    }
+  }
+}
+```
 
 Restart Claude Desktop after saving.
 
@@ -71,22 +192,24 @@ Restart Claude Desktop after saving.
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
-claude mcp add discord -e DISCORD_TOKEN=YOUR_TOKEN_HERE -- npx -y @pasympa/discord-mcp
+claude mcp add discord -- node /absolute/path/to/discord-mcp-ultimate/dist/index.js
 ```
+
+Set `DISCORD_TOKEN` in the environment Claude Code runs in.
 
 </details>
 
 <details>
 <summary><strong>Cursor</strong></summary>
 
-Add the config above to `~/.cursor/mcp.json`. See [Cursor MCP docs](https://docs.cursor.com/context/model-context-protocol) for details.
+`~/.cursor/mcp.json`, same shape as the Claude Desktop config.
 
 </details>
 
 <details>
 <summary><strong>VS Code / GitHub Copilot</strong></summary>
 
-Add to your `.vscode/mcp.json`:
+`.vscode/mcp.json`:
 
 ```json
 {
@@ -100,389 +223,256 @@ Add to your `.vscode/mcp.json`:
   ],
   "servers": {
     "discord": {
-      "command": "npx",
-      "args": ["-y", "@pasympa/discord-mcp"],
-      "env": {
-        "DISCORD_TOKEN": "${input:discord-token}"
-      }
+      "type": "stdio",
+      "command": "node",
+      "args": ["/absolute/path/to/discord-mcp-ultimate/dist/index.js"],
+      "env": { "DISCORD_TOKEN": "${input:discord-token}" }
     }
   }
 }
 ```
-
-See [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/chat/mcp-servers) for details.
 
 </details>
 
 <details>
 <summary><strong>Docker</strong></summary>
 
-```json
-{
-  "mcpServers": {
-    "discord": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "-e",
-        "DISCORD_TOKEN=YOUR_TOKEN_HERE",
-        "pasympa/discord-mcp:latest"
-      ]
-    }
-  }
-}
+```bash
+docker build -t discord-mcp-ultimate .
+docker run --rm -i -e DISCORD_TOKEN discord-mcp-ultimate
 ```
+
+`-e DISCORD_TOKEN` with no value passes it through from your environment, so the
+token never lands in a config file.
 
 </details>
 
-<details>
-<summary><strong>From source</strong></summary>
+---
+
+## Environment variables
+
+| Variable                  | Default      | Purpose                                                                                                                       |
+| ------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `DISCORD_TOKEN`           | _(required)_ | Bot token. Never commit it.                                                                                                   |
+| `DISCORD_GUILD_MEMBERS`   | `true`       | Request the Server Members intent. Set `false` if the portal toggle is off, or the connection closes with code 4014.          |
+| `DISCORD_MESSAGE_CONTENT` | `true`       | Request the Message Content intent. Set `false` for a purely administrative agent — it removes message-body reading entirely. |
+| `DISCORD_ALLOWED_GUILDS`  | _(unset)_    | Comma-separated guild IDs. When set, calls outside the list are rejected at parse time.                                       |
+| `DISCORD_MCP_TOOLSETS`    | _(unset)_    | Comma-separated toolset names to expose. Unset or `all` exposes everything.                                                   |
+
+See [.env.example](.env.example).
+
+**Toolset names:** `discovery`, `messages`, `channels`, `permissions`, `members`,
+`roles`, `moderation`, `screening`, `stats`, `forums`, `webhooks`,
+`scheduled_events`, `invites`, `dm`, `guild_settings`, `bot_profile`, `style`,
+`architect`, `automod`, `expressions`, `backup`, `diagnostics`, `scheduler`.
+
+Narrowing the toolset is the most effective way to make a model more reliable.
+Fewer tools means less to choose between.
+
+---
+
+## Examples
+
+```
+Show me every server the bot is in, with member counts.
+
+Rename the server to Watchtower Community.
+
+Update the server icon with this image: https://example.com/icon.png
+
+Read the full settings of server 123456789012345678.
+
+Generate 5 stylized variants for a channel called "announcements".
+
+Apply a futuristic theme to all channel names, but show me the preview first.
+
+Plan a community server for Watchtower with a welcome area, rules, release
+announcements, technical support, general discussion, developer roles and two
+voice channels. Use a sober futuristic theme.
+
+Compare that plan against the server and create only the missing pieces.
+
+Check which permissions the bot is missing and tell me which tools are affected.
+
+Diagnose why creating a channel in the announcements category fails.
+
+Back up the roles, categories and permissions, then diff it against the server.
+
+Show me a preview before deleting these channels: 111..., 222...
+```
+
+Destructive requests return a preview first, with the exact plan and no change
+applied. Applying requires a second call with an explicit confirmation.
+
+---
+
+## En français
+
+**Discord MCP Ultimate** est un serveur MCP pour Discord, avec **172 outils**,
+pilotable en langage naturel depuis Claude Desktop, Claude Code, Cursor, VS Code
+Copilot ou tout client compatible MCP.
+
+C'est un fork de [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp)
+version 2.2.0 (licence MIT). Les **99 outils d'origine sont conservés à
+l'identique**. Ce fork en ajoute **73**, pour un total de 172.
+
+### Ce qui a été ajouté
+
+| Domaine                    | Outils | Ce que ça permet                                                                                                                          |
+| -------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Paramètres du serveur      | 24     | Nom, icône, bannière, description, niveau de vérification, filtrage de contenu, salon AFK, Community, widget, écran d'accueil, onboarding |
+| Profil du bot              | 8      | Pseudonyme par serveur, avatar global, avatar par serveur, nom global, et l'audit de ce qui n'est **pas** modifiable                      |
+| Styles Unicode             | 4      | 12 styles décoratifs pour catégories, salons, rôles et forums, avec aperçu et cohérence de nomenclature                                   |
+| Architecte de serveur      | 10     | Plan détaillé, comparaison avec l'existant, création, réparation, modèles, suppression                                                    |
+| AutoMod                    | 6      | Règles de modération automatique et jeu de règles de départ                                                                               |
+| Emojis et stickers         | 8      | Création, modification, suppression                                                                                                       |
+| Sauvegarde et restauration | 3      | Export de la structure, comparaison, restauration additive                                                                                |
+| Diagnostic                 | 6      | Vérification de l'installation, permissions manquantes, journal d'audit                                                                   |
+| Planification              | 4      | Messages programmés, annonces structurées                                                                                                 |
+
+### Points importants, énoncés franchement
+
+- **Un bot ne peut pas créer un nouveau serveur Discord.** L'API exige un jeton
+  OAuth2 d'utilisateur. Créez le serveur vous-même, invitez le bot, puis laissez
+  l'architecte construire la structure.
+- **Discord n'a aucune police personnalisée.** Le générateur de styles décore du
+  texte avec des caractères Unicode. Ce n'est pas un moteur de polices, et les
+  outils le disent.
+- **La bannière, le splash et l'URL personnalisée** sont réservés aux serveurs de
+  niveau 2 de boost.
+- **Une sauvegarde ne contient pas les messages.** Discord n'expose pas d'export
+  global.
+- **Les suppressions sont irréversibles.** Discord n'a pas d'annulation, et le
+  serveur ne prétend pas le contraire.
+
+### Sécurité
+
+Tout outil qui modifie quelque chose fait un **aperçu par défaut**. Il faut
+rappeler l'outil avec une confirmation explicite pour appliquer. Les suppressions
+en masse exigent en plus la chaîne littérale `CONFIRM DELETE`, vérifiée par le
+schéma JSON de l'outil — le modèle la voit donc dans `tools/list` avant d'appeler.
+
+S'y ajoutent : la vérification des permissions avant chaque action, le contrôle
+de la hiérarchie des rôles, la limitation à certains serveurs via
+`DISCORD_ALLOWED_GUILDS`, la protection contre les boucles, et un journal
+d'audit.
+
+Détails complets : [docs/SECURITY.md](docs/SECURITY.md).
+
+### Installation
 
 ```bash
-git clone https://github.com/PaSympa/discord-mcp
-cd discord-mcp
-npm install && npm run build
+git clone https://github.com/ferelking242/discord-mcp-ultimate.git
+cd discord-mcp-ultimate
+npm ci && npm run build
 ```
+
+Puis, dans la configuration de votre client MCP :
 
 ```json
 {
   "mcpServers": {
     "discord": {
       "command": "node",
-      "args": ["/absolute/path/to/discord-mcp/dist/index.js"],
-      "env": {
-        "DISCORD_TOKEN": "YOUR_TOKEN_HERE"
-      }
+      "args": ["/chemin/absolu/vers/discord-mcp-ultimate/dist/index.js"],
+      "env": { "DISCORD_TOKEN": "VOTRE_JETON_ICI" }
     }
   }
 }
 ```
 
-</details>
+Les intents, la liste exacte des permissions à cocher et l'URL d'invitation sont
+dans [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
-<details>
-<summary><strong>.env file (alternative)</strong></summary>
-
-Instead of passing the token in the MCP config, create a `.env` file at the project root:
+### Exemples de demandes
 
 ```
-DISCORD_TOKEN=YOUR_TOKEN_HERE
+Renomme le serveur en Watchtower Community.
+
+Mets à jour son icône avec cette image : https://exemple.fr/icone.png
+
+Lis tous les paramètres du serveur 123456789012345678.
+
+Génère 5 variantes stylisées pour un salon nommé « annonces ».
+
+Applique un thème futuriste à tous les noms de salons, mais montre-moi l'aperçu
+avant.
+
+Prépare un serveur communautaire pour Watchtower avec accueil, règles, annonces
+de versions, support technique, discussions, rôles de développeurs et salons
+vocaux. Utilise un thème futuriste sobre.
+
+Compare ce plan au serveur et ne crée que ce qui manque.
+
+Vérifie les permissions manquantes du bot et dis-moi quels outils sont touchés.
+
+Montre-moi un aperçu avant de supprimer ces salons : 111..., 222...
 ```
 
-The server loads `.env` automatically via `dotenv`.
+### Tests
 
-</details>
-
-### Environment variables
-
-| Variable                  | Default | Description                                                                                                                                                                                  |
-| ------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DISCORD_TOKEN`           | none    | **Required.** Bot token.                                                                                                                                                                     |
-| `DISCORD_MESSAGE_CONTENT` | `true`  | Set to `false` to stop requesting the Message Content privileged gateway intent at connect time.                                                                                             |
-| `DISCORD_GUILD_MEMBERS`   | `true`  | Set to `false` to stop requesting the Server Members privileged gateway intent at connect time.                                                                                              |
-| `DISCORD_MCP_TOOLSETS`    | `all`   | Comma-separated list of toolsets to expose, to keep the tool list small. Unset or `all` exposes every tool.                                                                                  |
-| `DISCORD_ALLOWED_GUILDS`  | all     | Comma-separated guild IDs the server may act on. When set, tool calls targeting any other guild are rejected, whether addressed by guild ID, channel ID, thread ID, webhook, or invite code. |
-
-Since 2.1.1 the server no longer requests the `GuildMessages` intent at all: nothing here subscribes to message events, and every message this server returns is fetched over REST, which connection intents do not gate. That intent used to make discord.js cache every message flowing through every channel, together with its author, which grew unbounded on a long-running server. Cache sweepers now bound what remains. `DISCORD_MESSAGE_CONTENT` therefore only affects whether the Message Content intent is requested at connect time; it does not change what any tool returns.
-
-These flags only control which gateway intents the server requests when identifying. Requesting a privileged intent that is **not** enabled in the Developer Portal makes the connection fail at the first tool call (close code `4014`); set the flag to `false` to connect anyway.
-
-Data access is governed by the **portal toggles**, not by these flags: this server reads everything over the REST API, which Discord gates on the portal setting alone. So with the portal toggles on, setting these flags to `false` loses nothing. With a portal toggle **off**, the corresponding data is restricted regardless of the flags: message bodies come back empty (`content`, `embeds`, `attachments`; except the bot's own messages, DMs, and messages that mention the bot) and member listing fails; enable the toggle in the portal to restore it.
-
-**Toolsets** (`DISCORD_MCP_TOOLSETS`): `discovery`, `messages`, `channels`, `permissions`, `members`, `roles`, `moderation`, `screening`, `stats`, `forums`, `webhooks`, `scheduled_events`, `invites`, `dm`. Example; `DISCORD_MCP_TOOLSETS=discovery,messages,members` exposes only the discovery, message, and member tools. Note: a toolset ships its whole module, including its destructive tools (`messages` includes bulk delete; `members` includes kick/ban); use `DISCORD_ALLOWED_GUILDS` and the dry-run defaults to bound them. Only the listed toolsets' tools are advertised and callable. Unknown names make the server fail at startup instead of silently exposing everything (an empty value counts as unset and exposes all).
-
----
-
-## Creating Your Discord Bot
-
-1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
-2. **New Application** > give it a name
-3. **Bot** tab > **Reset Token** > copy the token
-4. Enable **Privileged Gateway Intents** (this server requests both by default, but new Discord apps have the portal toggles OFF):
-   - Server Members Intent
-   - Message Content Intent
-
-   > **Important:** if the bot requests a privileged intent that is not enabled here, Discord closes the connection with code `4014` and every tool call fails. Enable both, or stop requesting the ones you don't need via the [environment variables](#environment-variables) above.
-
-5. **OAuth2 > URL Generator**:
-   - Scopes: `bot`
-   - Permissions: `Send Messages`, `Read Message History`, `Manage Channels`, `Manage Roles`, `Kick Members`, `Ban Members`, `Moderate Members`, `View Audit Log`, `Manage Messages`, `Manage Threads`, `Add Reactions`, `Manage Guild`, `Manage Webhooks`, `Manage Events`, `Create Events`, `Create Instant Invite`, `Manage Nicknames`, `Pin Messages`, `Embed Links`, `Create Public Threads`, `Send Messages in Threads`
-6. Copy the generated URL and invite the bot to your server
-
----
-
-## Available Tools (99)
-
-### Discovery & Navigation (4 tools)
-
-| Tool                           | Description                                                      |
-| ------------------------------ | ---------------------------------------------------------------- |
-| `discord_list_guilds`          | List all servers the bot is connected to                         |
-| `discord_get_guild_info`       | Get detailed guild info (name, members, channels, roles, boosts) |
-| `discord_list_channels`        | List all channels in a guild grouped by category                 |
-| `discord_find_channel_by_name` | Find a channel by name (partial match)                           |
-
-### Messages (20 tools)
-
-| Tool                              | Description                                              |
-| --------------------------------- | -------------------------------------------------------- |
-| `discord_read_messages`           | Read messages, paging back through history               |
-| `discord_send_message`            | Send a plain text message                                |
-| `discord_reply_message`           | Reply to a specific message                              |
-| `discord_edit_message`            | Edit a message sent by the bot                           |
-| `discord_delete_message`          | Delete a specific message                                |
-| `discord_add_reaction`            | Add a reaction emoji to a message                        |
-| `discord_remove_reactions`        | Remove reactions (all, by emoji, or by user)             |
-| `discord_get_reactions`           | List users who reacted with a specific emoji             |
-| `discord_create_thread`           | Create a thread from a message or standalone             |
-| `discord_bulk_delete_messages`    | Delete multiple messages at once (2-100)                 |
-| `discord_send_embed`              | Send a rich embed with all options                       |
-| `discord_edit_embed`              | Edit an embed previously sent by the bot                 |
-| `discord_send_multiple_embeds`    | Send up to 10 embeds in a single message                 |
-| `discord_pin_message`             | Pin or unpin a message                                   |
-| `discord_get_message_attachments` | List a message's attachments with download urls          |
-| `discord_fetch_pinned_messages`   | List all pinned messages in a channel                    |
-| `discord_search_messages`         | Search messages by keyword (last 100)                    |
-| `discord_search_guild_messages`   | Search across every channel using Discord's search index |
-| `discord_crosspost_message`       | Publish a message to announcement channel followers      |
-| `discord_forward_message`         | Forward a message to another channel                     |
-
-### Channels (8 tools)
-
-| Tool                                  | Description                              |
-| ------------------------------------- | ---------------------------------------- |
-| `discord_create_channel`              | Create a text, voice channel or category |
-| `discord_delete_channel`              | Delete a channel                         |
-| `discord_edit_channel`                | Edit name, topic, slowmode, NSFW flag    |
-| `discord_move_channel`                | Move a channel into/out of a category    |
-| `discord_clone_channel`               | Clone a channel with its permissions     |
-| `discord_set_channel_position`        | Set display position within a category   |
-| `discord_follow_announcement_channel` | Follow an announcement channel           |
-| `discord_lock_channel_permissions`    | Sync permissions with parent category    |
-
-### Channel Permissions (6 tools)
-
-| Tool                                | Description                                      |
-| ----------------------------------- | ------------------------------------------------ |
-| `discord_get_channel_permissions`   | List all permission overwrites on a channel      |
-| `discord_set_role_permission`       | Allow/deny permissions for a role on a channel   |
-| `discord_set_member_permission`     | Allow/deny permissions for a member on a channel |
-| `discord_reset_channel_permissions` | Remove all overwrites (reset to inherited)       |
-| `discord_copy_permissions`          | Copy overwrites from one channel to another      |
-| `discord_audit_permissions`         | Full permission audit for all channels           |
-
-### Members (11 tools)
-
-| Tool                      | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| `discord_list_members`    | List guild members with their roles                  |
-| `discord_get_member_info` | Detailed member info (roles, permissions, join date) |
-| `discord_search_members`  | Search members by username or nickname               |
-| `discord_set_nickname`    | Set or clear a member's nickname                     |
-| `discord_kick_member`     | Kick a member                                        |
-| `discord_ban_member`      | Ban a member (optionally delete recent messages)     |
-| `discord_unban_member`    | Unban a user                                         |
-| `discord_bulk_ban`        | Ban multiple users at once (raid mitigation)         |
-| `discord_list_bans`       | List all banned users                                |
-| `discord_timeout_member`  | Timeout a member (0 to remove)                       |
-| `discord_prune_members`   | Remove inactive members (with dry run)               |
-
-### Roles (9 tools)
-
-| Tool                        | Description                                                |
-| --------------------------- | ---------------------------------------------------------- |
-| `discord_list_roles`        | List all roles with permissions and member count           |
-| `discord_create_role`       | Create a new role                                          |
-| `discord_edit_role`         | Edit a role (name, color, permissions, hoist, mentionable) |
-| `discord_delete_role`       | Delete a role                                              |
-| `discord_add_role`          | Assign a role to a member                                  |
-| `discord_remove_role`       | Remove a role from a member                                |
-| `discord_get_role_members`  | List all members with a specific role                      |
-| `discord_set_role_position` | Change a role's position in the hierarchy                  |
-| `discord_set_role_icon`     | Set a custom icon or unicode emoji on a role               |
-
-### Forums (10 tools)
-
-| Tool                           | Description                          |
-| ------------------------------ | ------------------------------------ |
-| `discord_get_forum_channels`   | List all forum channels in a guild   |
-| `discord_create_forum_channel` | Create a new forum channel           |
-| `discord_create_forum_post`    | Create a post/thread in a forum      |
-| `discord_get_forum_post`       | Get a post's details and messages    |
-| `discord_list_forum_threads`   | List threads (active + archived)     |
-| `discord_reply_to_forum`       | Reply to a forum post                |
-| `discord_delete_forum_post`    | Delete a forum thread                |
-| `discord_get_forum_tags`       | Get available tags                   |
-| `discord_set_forum_tags`       | Set/update tags on a forum           |
-| `discord_update_forum_post`    | Update title, archived, locked, tags |
-
-### Webhooks (8 tools)
-
-| Tool                             | Description                                       |
-| -------------------------------- | ------------------------------------------------- |
-| `discord_create_webhook`         | Create a webhook on a channel                     |
-| `discord_send_webhook_message`   | Send via webhook (custom username/avatar, embeds) |
-| `discord_edit_webhook`           | Edit a webhook's name, avatar, or channel         |
-| `discord_delete_webhook`         | Delete a webhook                                  |
-| `discord_list_webhooks`          | List webhooks for a channel or guild              |
-| `discord_edit_webhook_message`   | Edit a message sent by a webhook                  |
-| `discord_delete_webhook_message` | Delete a message sent by a webhook                |
-| `discord_fetch_webhook_message`  | Fetch a specific webhook message                  |
-
-### Scheduled Events (7 tools)
-
-| Tool                             | Description                               |
-| -------------------------------- | ----------------------------------------- |
-| `discord_list_scheduled_events`  | List all scheduled events in a guild      |
-| `discord_get_scheduled_event`    | Get detailed info about a scheduled event |
-| `discord_create_scheduled_event` | Create a voice, stage, or external event  |
-| `discord_edit_scheduled_event`   | Edit an existing scheduled event          |
-| `discord_delete_scheduled_event` | Delete a scheduled event                  |
-| `discord_get_event_subscribers`  | Get users who marked "Interested"         |
-| `discord_create_event_invite`    | Create an invite linked to an event       |
-
-### Direct Messages (7 tools)
-
-| Tool                    | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| `discord_send_dm`       | Send a direct message to a user by their user ID |
-| `discord_send_dm_embed` | Send an embed in a DM to a user                  |
-| `discord_read_dms`      | Read message history from a DM conversation      |
-| `discord_reply_dm`      | Reply to a specific DM message                   |
-| `discord_edit_dm`       | Edit a previously sent DM (text)                 |
-| `discord_edit_dm_embed` | Edit a previously sent DM embed                  |
-| `discord_delete_dm`     | Delete a DM message                              |
-
-### Invites (5 tools)
-
-| Tool                           | Description                             |
-| ------------------------------ | --------------------------------------- |
-| `discord_list_invites`         | List all active invites in a guild      |
-| `discord_list_channel_invites` | List invites for a specific channel     |
-| `discord_get_invite`           | Get details about an invite by its code |
-| `discord_create_invite`        | Create an invite link for a channel     |
-| `discord_delete_invite`        | Revoke an invite                        |
-
-### Moderation & Screening (3 tools)
-
-| Tool                                  | Description                            |
-| ------------------------------------- | -------------------------------------- |
-| `discord_get_audit_log`               | Fetch the guild audit log              |
-| `discord_get_membership_screening`    | Get the membership screening form      |
-| `discord_update_membership_screening` | Update screening rules for new members |
-
-### Stats (1 tool)
-
-| Tool                       | Description                                         |
-| -------------------------- | --------------------------------------------------- |
-| `discord_get_server_stats` | Server stats: members, channels, roles, boost level |
-
----
-
-## Usage Examples
-
-```
-"List all servers the bot is in"
-"Read the last 10 messages in #general"
-"Send 'Hello everyone!' to the announcements channel"
-"Create a forum channel called 'feedback' with tags Bug, Feature, Question"
-"Show the full permission audit for the server"
-"Create a webhook on #notifications and send a test message"
-"Ban user 112233445566778899 and delete their messages from the last 3 days"
-"Create an event called 'Game Night' for next Friday at 8pm"
-"List all upcoming events in the server"
-"Create a permanent invite for #general"
-"List all active invites and delete expired ones"
-"Send a DM to user 112233445566778899 saying 'Your build passed!'"
-"Search for members named 'john'"
-"List all banned users in the server"
-"Show all pinned messages in #general"
-"Forward that message to #announcements"
+```bash
+npm test
 ```
 
----
-
-## Finding Discord IDs
-
-Enable **Developer Mode** in Discord:
-`Settings > Advanced > Developer Mode`
-
-Then **right-click** on a server, channel, or user > **Copy ID**.
+145 tests, exécutés sans jeton Discord et sans serveur réel, grâce à des mocks et
+un transport MCP en mémoire. `test/serverHandshake.test.ts` effectue une vraie
+poignée de main MCP et vérifie la liste d'outils annoncée.
 
 ---
 
-## Project Structure
+## Documentation
 
-```
-discord-mcp/
-├── src/
-│   ├── index.ts             ← Entry point (MCP server + transport)
-│   ├── client.ts            ← Discord client + shared helpers
-│   ├── constants.ts         ← Shared constants (limits, defaults)
-│   ├── embeds.ts            ← Shared embed schema + builder
-│   └── tools/
-│       ├── index.ts         ← Tool registry (toolset gating, dispatch)
-│       ├── define.ts        ← defineTool/defineModule + shared zod fields
-│       ├── types.ts         ← Shared TypeScript interfaces
-│       ├── discovery.ts     ← Guild/channel discovery
-│       ├── messages.ts      ← Message CRUD, reactions, threads, embeds
-│       ├── channels.ts      ← Channel management
-│       ├── permissions.ts   ← Permission overwrites
-│       ├── members.ts       ← Member management
-│       ├── roles.ts         ← Role CRUD and assignment
-│       ├── moderation.ts    ← Audit log
-│       ├── screening.ts     ← Membership screening
-│       ├── stats.ts         ← Server statistics
-│       ├── forums.ts        ← Forum channels, posts, tags
-│       ├── webhooks.ts      ← Webhook management
-│       ├── scheduledEvents.ts ← Scheduled events
-│       ├── invites.ts        ← Invite management
-│       └── dm.ts             ← Direct messages
-├── test/                     ← node:test suite (schemas, gating, allow-list)
-├── scripts/                  ← sync-version.js (npm version hook)
-├── .github/workflows/        ← CI/CD (build check + auto release)
-├── Dockerfile
-├── .dockerignore
-├── .env.example
-├── package.json
-├── tsconfig.json
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── SECURITY.md
-└── README.md
+| Document                                     | Contents                                                                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 172 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply |
+| [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md)       | The 73 added tools, module by module, with the design decisions                                               |
+| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Bot creation, intents, the full permission list, every client config, verification                            |
+| [docs/SECURITY.md](docs/SECURITY.md)         | Credential handling, preview/confirm gates, permission preflight, prompt-injection boundaries                 |
+| [CHANGELOG.md](CHANGELOG.md)                 | Version history                                                                                               |
+
+---
+
+## Limitations
+
+Discord platform limits, stated rather than hidden. Each is also in the
+description of the tool it affects.
+
+- **A bot cannot create a new server.** Requires a user OAuth2 token.
+- **No custom fonts.** Unicode decoration only; Discord has no font API.
+- **Server banner, splash and vanity URL are gated** behind boost level 2 and
+  specific server features.
+- **No message history in a backup.** No bulk export endpoint exists.
+- **Bulk delete cannot remove messages older than 14 days.**
+- **Bot banner, global bio and accent colour are not settable** by a bot.
+- **The audit trail is in-process**, capped at 500 entries, lost on restart.
+- **Deleted entities are gone.** Discord has no undo.
+- **Scheduled tasks live in the server process** and do not survive a restart.
+  Use an external scheduler for durable timing.
+
+---
+
+## Development
+
+```bash
+npm ci
+npm run build      # tsc
+npm run lint       # eslint
+npm test           # node:test, 145 tests
+npm run format     # prettier
 ```
 
-### Adding a new tool
-
-1. Create a new file in `src/tools/` (e.g. `events.ts`)
-2. Declare each tool with `defineTool({ name, description, annotations, schema, handle })` and export `defineModule([...])` as the default
-3. Import it and add it to `allToolsets` in `src/tools/index.ts` (the key is its `DISCORD_MCP_TOOLSETS` name)
+The test suite runs entirely against mocks and in-memory MCP transports — no
+Discord token and no live server are needed. `test/serverHandshake.test.ts`
+performs a real MCP handshake and asserts the advertised tool list.
 
 ---
 
-## Security
+## Credits and licence
 
-- Never commit your Discord token to Git
-- Use environment variables or a `.env` file (not versioned)
-- Give the bot only the permissions it needs
-- Restrict the server to specific servers with `DISCORD_ALLOWED_GUILDS`
-- Irreversible mass actions (`bulk_ban`, `prune_members`, `bulk_delete_messages`, `delete_channel`) default to a `dry_run` preview; pass `dry_run:false` to apply
+MIT. See [LICENSE](LICENSE).
 
----
-
-## Contributing
-
-Contributions are welcome!
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Follow the modular structure, see [Adding a new tool](#adding-a-new-tool)
-4. Commit your changes and open a pull request
-
----
-
-## License
-
-MIT, see [LICENSE](LICENSE) for details.
+This is a fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) by
+Léandre Moreau. The 99 tools in the imported baseline are that project's work,
+preserved unchanged, including their original copyright notice. The 73 added
+tools, the safety layer and the documentation are new in this fork.

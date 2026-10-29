@@ -21,7 +21,10 @@ import {
  * transport to the caller: stdio in production, in-memory in tests.
  */
 export function createServer(version: string): Server {
-  const server = new Server({ name: "discord-mcp", version }, { capabilities: { tools: {} } });
+  const server = new Server(
+    { name: "discord-mcp-ultimate", version },
+    { capabilities: { tools: {} } },
+  );
 
   server.setRequestHandler(ListToolsRequestSchema, async (req) => {
     if (req.params?.cursor !== undefined)

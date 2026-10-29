@@ -1,10 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  assertConfirmation,
+  CONFIRMATION_PHRASES,
   confirmationPhrase,
   isDuplicateFingerprint,
-  previewResult,
   readAuditTrail,
   recordAction,
   resetAuditTrail,
@@ -35,15 +34,6 @@ test("resolveGate's report carries the preview hint only while previewing", () =
   assert.equal(apply.mode, "apply");
   assert.equal(apply.requires_confirmation, false);
   assert.equal(apply.hint, undefined);
-});
-
-test("previewResult marks the payload as unapplied and returns structured content", () => {
-  const result = previewResult({ would_delete: ["a", "b"] });
-  assert.equal(result.structuredContent.mode, "preview");
-  assert.equal(result.structuredContent.applied, false);
-  assert.deepEqual(result.structuredContent.would_delete, ["a", "b"]);
-  assert.match(result.content[0]!.text, /Preview/);
-  assert.match(result.content[0]!.text, /"would_delete"/);
 });
 
 test("the audit trail records newest-first and clamps its limit", () => {
@@ -84,17 +74,9 @@ test("isDuplicateFingerprint flags a repeat inside the window and allows it afte
   resetFingerprints();
 });
 
-test("confirmationPhrase and assertConfirmation gate irreversible work", () => {
+test("confirmationPhrase is the single source of truth for the typed phrase", () => {
   assert.equal(confirmationPhrase("delete"), "CONFIRM DELETE");
-  assert.equal(confirmationPhrase("mass_ban"), "CONFIRM BAN");
-
-  assert.throws(() => assertConfirmation("delete", undefined), /needs explicit confirmation/);
-  assert.throws(() => assertConfirmation("delete", "DELETE"), /needs explicit confirmation/);
-  assert.throws(
-    () => assertConfirmation("delete", "confirm delete"),
-    /needs explicit confirmation/,
-  );
-  assert.doesNotThrow(() => assertConfirmation("delete", "CONFIRM DELETE"));
+  assert.deepEqual(CONFIRMATION_PHRASES, { delete: "CONFIRM DELETE" });
 });
 
 test("throttleBulk paces successive calls by at least the configured interval", async () => {
