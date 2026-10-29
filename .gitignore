@@ -13,3 +13,6 @@ dist/
 
 # Local audit / review artifacts
 AUDIT_VERIFICATION.md
+
+# Local operational helpers (never published)
+.ops/
