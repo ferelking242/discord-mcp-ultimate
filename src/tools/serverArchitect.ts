@@ -183,6 +183,10 @@ export function planToSteps(plan: ArchitectPlan): BuildStep[] {
       label: categoryName,
       payload: {
         name: categoryName,
+        // Without an explicit type Discord defaults the create call to a text
+        // channel, so the "category" would be created as a plain channel and
+        // every child would then fail to find a parent.
+        type: ChannelType.GuildCategory,
         hidden_from: category.hidden_from,
       },
     });
@@ -191,7 +195,9 @@ export function planToSteps(plan: ArchitectPlan): BuildStep[] {
         key: `channel:${category.name}/${channel.name}`,
         kind: "channel",
         label: style(channel.name, kindToEntityKind[channel.kind]!, channel.emoji),
-        parentName: category.name,
+        // Parent by the *styled* name: that is what the category step created,
+        // and a themed plan renames the category.
+        parentName: categoryName,
         payload: {
           name: style(channel.name, kindToEntityKind[channel.kind]!, channel.emoji),
           type: kindToChannelType[channel.kind]!,

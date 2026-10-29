@@ -93,14 +93,20 @@ test("verify_setup never leaks the token value into its output", async () => {
 test("a tool needing Discord reports the missing token instead of hanging", async () => {
   const { client, server } = await connect();
   const saved = process.env.DISCORD_TOKEN;
-  delete process.env.DISCORD_TOKEN;
-  const result = await client.callTool({
-    name: "discord_get_guild_settings",
-    arguments: { guild_id: "111111111111111111" },
-  });
-  assert.equal(result.isError, true);
-  assert.match(result.content[0]!.text as string, /DISCORD_TOKEN is required/);
-  process.env.DISCORD_TOKEN = saved;
+  try {
+    delete process.env.DISCORD_TOKEN;
+    const result = await client.callTool({
+      name: "discord_get_guild_settings",
+      arguments: { guild_id: "111111111111111111" },
+    });
+    assert.equal(result.isError, true);
+    assert.match(result.content[0]!.text as string, /DISCORD_TOKEN is required/);
+  } finally {
+    // Restore even if an assertion throws: the remaining tests in this file
+    // rely on the ambient token, and a leaked delete makes them hit the network.
+    if (saved === undefined) delete process.env.DISCORD_TOKEN;
+    else process.env.DISCORD_TOKEN = saved;
+  }
   await client.close();
   await server.close();
 });
@@ -157,18 +163,18 @@ test("the typed delete confirmation is enforced by the schema, not by a handler"
     assert.equal(result.isError, true, `${JSON.stringify(wrong)} must be rejected`);
   }
 
-  // Omitting the phrase is not a schema error. Without a token the call still
-  // stops at the connection gate, because every Discord-backed tool connects
-  // eagerly; the tool's own preview logic is covered by test/serverArchitect.test.ts
-  // with a mocked guild.
+  // Omitting the phrase is not a schema error. The call still stops at the
+  // connection gate, because every Discord-backed tool connects eagerly; the
+  // tool's own preview logic is covered by test/serverArchitect.test.ts with a
+  // mocked guild. The gate reports whatever the stub token provokes — a login
+  // failure — so assert on the failure, not on one specific message.
   const preview = await client.callTool({
     name: "discord_architect_delete_structure",
     arguments: { guild_id: "111111111111111111", channel_ids: ["333333333333333333"] },
   });
   assert.equal(preview.isError, true);
-  assert.match(preview.content[0]!.text as string, /DISCORD_TOKEN is required/);
   assert.ok(
-    !/confirmation/.test(preview.content[0]!.text as string),
+    !/confirmation/i.test(preview.content[0]!.text as string),
     "omitting the phrase must not be reported as a confirmation error",
   );
 

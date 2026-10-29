@@ -19,7 +19,15 @@ import { SWEEP } from "./constants.js";
 
 // ─── Discord Client ────────────────────────────────────────────────────────────
 
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+/**
+ * The token is read at connect time, not at import time: the MCP server is
+ * long-lived, and a value captured at module load cannot reflect a token that
+ * the host injects later, nor one changed in a test. Reading it here also keeps
+ * the value out of any module-level state that could be logged.
+ */
+function getToken(): string | undefined {
+  return process.env.DISCORD_TOKEN;
+}
 
 /** Maximum time to wait for the gateway to reach READY before giving up. */
 const LOGIN_TIMEOUT_MS = 30_000;
@@ -93,7 +101,8 @@ export async function ensureConnected(): Promise<void> {
     return;
   }
 
-  if (!DISCORD_TOKEN) {
+  const token = getToken();
+  if (!token) {
     throw new Error("DISCORD_TOKEN is required. Set it in your MCP client config or a .env file.");
   }
 
@@ -120,7 +129,7 @@ export async function ensureConnected(): Promise<void> {
       ready.catch(() => {});
 
       try {
-        await discord.login(DISCORD_TOKEN);
+        await discord.login(token);
       } catch (err) {
         clearTimeout(timer);
         discord.off(Events.ClientReady, onReady);

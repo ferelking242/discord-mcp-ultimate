@@ -25,7 +25,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --import tsx --test test/*.test.ts",
+    "test": "node --import tsx --import ./test/env-setup.ts --test test/*.test.ts",
     "version": "node scripts/sync-version.js && git add server.json",
     "prepublishOnly": "npm run build"
   },
@@ -41,7 +41,7 @@
     "windsurf",
     "claude-desktop"
   ],
-  "author": "ferelking242 (fork of PaSympa/discord-mcp by L\u00e9andre Moreau)",
+  "author": "ferelking242 (fork of PaSympa/discord-mcp by Léandre Moreau)",
   "license": "MIT",
   "repository": {
     "type": "git",

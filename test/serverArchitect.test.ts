@@ -56,7 +56,9 @@ test("planToSteps orders roles first, then categories, then their channels", () 
   assert.equal(steps[0]!.label, "✦・developer");
   assert.equal(steps[2]!.label, "✦・accueil");
   assert.equal(steps[3]!.label, "✦・regles");
-  assert.equal(steps[3]!.parentName, "Accueil");
+  // The parent is recorded by the *styled* category name, which is what the
+  // category step actually creates on Discord.
+  assert.equal(steps[3]!.parentName, "✦・accueil");
   assert.equal(steps[5]!.parentName, undefined, "uncategorised channels have no parent");
 });
 
@@ -82,6 +84,22 @@ test("planToSteps maps logical channel kinds to the right Discord channel types"
   // ChannelType: GuildText=0, GuildVoice=2, GuildCategory=4, GuildAnnouncement=5,
   // GuildStageVoice=13, GuildForum=15
   assert.deepEqual(types, [0, 2, 15, 5, 13]);
+});
+
+test("planToSteps emits an explicit category type and parents channels by the styled name", () => {
+  // Regression: the category step once carried no `type`, so Discord created a
+  // plain text channel instead of a category and every child lost its parent.
+  const steps = planToSteps({
+    theme: "minimal",
+    roles: [],
+    categories: [{ name: "Accueil", channels: [{ name: "chat", kind: "text" }] }],
+    uncategorized: [],
+    system_channels: {},
+  });
+  const category = steps.find((s) => s.kind === "category")!;
+  assert.equal(category.payload.type, 4, "GuildCategory is type 4");
+  const child = steps.find((s) => s.kind === "channel")!;
+  assert.equal(child.parentName, category.label, "the child must parent by the created name");
 });
 
 test("planToSteps without a theme keeps the plain names", () => {

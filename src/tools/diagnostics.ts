@@ -1,6 +1,6 @@
 import { ChannelType, PermissionFlagsBits, PermissionsBitField } from "discord.js";
 import { z } from "zod";
-import { discord, getGuild, serializePermissions } from "../client.js";
+import { discord, ensureConnected, getGuild, serializePermissions } from "../client.js";
 import { readAuditTrail } from "../safety.js";
 import { defineModule, defineTool, guildId, snowflake, structured } from "./define.js";
 
@@ -491,8 +491,22 @@ const tools = [
         problems.push("DISCORD_TOKEN is not set; every tool call will fail at connect time.");
         nextSteps.push("Set DISCORD_TOKEN in the MCP client config or a .env file.");
       }
+      // This tool is connection-free so that it still answers when the bot
+      // cannot connect — which means it must attempt the connection itself.
+      // Reporting `discord.isReady()` without trying would blame the token on a
+      // perfectly healthy install that simply has not made a call yet.
+      let connectionError: string | null = null;
+      if (tokenConfigured && !discord.isReady()) {
+        try {
+          await ensureConnected();
+        } catch (err) {
+          connectionError = err instanceof Error ? err.message : String(err);
+        }
+      }
       const ready = discord.isReady();
-      if (tokenConfigured && !ready)
+      if (connectionError)
+        problems.push(`The client could not connect: ${connectionError}`);
+      else if (tokenConfigured && !ready)
         problems.push(
           "The client has not reached READY. Check the token, and that the privileged intents requested below are enabled in the Developer Portal (a missing one closes the connection with code 4014).",
         );
