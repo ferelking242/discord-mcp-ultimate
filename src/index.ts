@@ -8,6 +8,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { discord } from "./client.js";
 import { createServer } from "./server.js";
+import { stopAllScheduledTasks } from "./tools/scheduler.js";
 
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
 const version: string = pkg.version;
@@ -20,6 +21,7 @@ async function main() {
 
 function shutdown() {
   console.error("Shutting down Discord MCP Server...");
+  stopAllScheduledTasks();
   discord.destroy();
   process.exit(0);
 }

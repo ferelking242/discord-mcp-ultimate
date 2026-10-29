@@ -24,6 +24,15 @@ import webhooks from "./webhooks.js";
 import scheduledEvents from "./scheduledEvents.js";
 import invites from "./invites.js";
 import dm from "./dm.js";
+import guildSettings from "./guildSettings.js";
+import botProfile from "./botProfile.js";
+import style from "./style.js";
+import serverArchitect from "./serverArchitect.js";
+import automod from "./automod.js";
+import expressions from "./expressions.js";
+import backup from "./backup.js";
+import diagnostics from "./diagnostics.js";
+import scheduler from "./scheduler.js";
 
 /** Every toolset, keyed by the name used in the `DISCORD_MCP_TOOLSETS` env var. */
 const allToolsets: Record<string, ToolModule> = {
@@ -41,6 +50,15 @@ const allToolsets: Record<string, ToolModule> = {
   scheduled_events: scheduledEvents,
   invites,
   dm,
+  guild_settings: guildSettings,
+  bot_profile: botProfile,
+  style,
+  architect: serverArchitect,
+  automod,
+  expressions,
+  backup,
+  diagnostics,
+  scheduler,
 };
 
 /**

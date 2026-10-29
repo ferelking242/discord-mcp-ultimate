@@ -31,6 +31,30 @@ export const intIn = (min: number, max: number) => z.int().min(min).max(max);
 export const httpUrl = z.url({ protocol: /^https?$/ }).meta({ pattern: "^https?://" });
 
 /**
+ * An image argument: an http(s) URL, a `data:image/...;base64,...` URI, or a bare
+ * base64 payload. Validated as a string here; the bytes are fetched and sniffed
+ * by `resolveImageInput` at call time.
+ */
+export const imageInput = z
+  .string()
+  .min(1)
+  .describe(
+    "An image as an https URL, a data:image/png;base64,... URI, or a bare base64 string (PNG, JPEG, GIF or WebP, max 10 MB).",
+  );
+
+/**
+ * A confirmation acknowledgement for irreversible operations.
+ *
+ * Deliberately *not* `.default(false)`: a defaulted boolean would let a model
+ * apply a destructive change without ever mentioning it. Requiring the literal
+ * phrase forces the value into the model's output, which is the whole point.
+ */
+export const confirmation = z
+  .literal("CONFIRM DELETE")
+  .optional()
+  .describe('Type the literal string "CONFIRM DELETE" to apply. Omit to preview only.');
+
+/**
  * Converts a zod schema into the JSON Schema shape MCP sends over the wire.
  * `io: "input"` emits the input view (so `.default()`s stay optional); the `$schema`
  * key zod adds is stripped because MCP `inputSchema` is a bare object schema.
@@ -57,10 +81,11 @@ function toOutputSchema(schema: z.ZodType): Record<string, unknown> {
  * as machine-readable `structuredContent`. Pass an object (wrap arrays as
  * `{ items: [...] }`) so it conforms to the tool's object-root `outputSchema`.
  */
-export function structured(data: Record<string, unknown>): ToolResult {
+export function structured(data: object): ToolResult {
+  const record = data as Record<string, unknown>;
   return {
-    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
-    structuredContent: data,
+    content: [{ type: "text", text: JSON.stringify(record, null, 2) }],
+    structuredContent: record,
   };
 }
 

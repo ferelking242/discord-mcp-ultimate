@@ -3,9 +3,11 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  Guild,
   GuildChannel,
   Options,
   PermissionsBitField,
+  Role,
   type GuildTextBasedChannel,
 } from "discord.js";
 import { SWEEP } from "./constants.js";
@@ -262,4 +264,140 @@ export function deserializePermissions(names: string[]): PermissionsBitField {
   return new PermissionsBitField(
     names.map((p) => PermissionsBitField.Flags[p as keyof typeof PermissionsBitField.Flags]),
   );
+}
+
+// ─── Permission and hierarchy preflight ────────────────────────────────────────
+
+/**
+ * Verifies the bot itself holds a permission in a guild before attempting an
+ * action, so the failure names the missing permission instead of surfacing
+ * Discord's generic 50013.
+ *
+ * The check is a preflight, not a guarantee: Discord remains the authority, and
+ * a channel-level overwrite can still deny the action afterwards.
+ */
+export function assertBotPermission(
+  guild: Guild,
+  flag: keyof typeof PermissionsBitField.Flags,
+  action: string,
+): void {
+  const me = guild.members.me;
+  if (!me)
+    throw new Error(`Cannot verify bot permissions in ${guild.name}: bot member not cached.`);
+  if (!me.permissions.has(flag)) {
+    throw new Error(
+      `The bot lacks the ${flag} permission in "${guild.name}", which ${action} requires. Grant it in Server Settings > Roles, then retry.`,
+    );
+  }
+}
+
+/**
+ * Verifies a target role sits strictly below the bot's highest role.
+ *
+ * Discord refuses role edits at or above the bot's own highest role; checking
+ * first turns an opaque 50013 into an explanation of the hierarchy problem.
+ */
+export function assertRoleHierarchy(guild: Guild, target: Role, action: string): void {
+  const me = guild.members.me;
+  if (!me) throw new Error(`Cannot verify role hierarchy in ${guild.name}: bot member not cached.`);
+  const highest = me.roles.highest;
+  if (target.position >= highest.position) {
+    throw new Error(
+      `Cannot ${action} role "${target.name}" (position ${target.position}): it is at or above the bot's highest role "${highest.name}" (position ${highest.position}). Move the bot's role higher in Server Settings > Roles, then retry.`,
+    );
+  }
+}
+
+// ─── Image inputs ──────────────────────────────────────────────────────────────
+
+/** Largest image accepted from a URL, base64 string or data URI: Discord's 10 MB upload cap. */
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Image formats Discord accepts for guild icons, banners, splashes and emoji. */
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+/**
+ * Turns an image argument into bytes Discord will accept.
+ *
+ * Accepts an http(s) URL, a `data:image/...;base64,...` URI, or a bare base64
+ * string. Only the four image types Discord documents are accepted, the size is
+ * capped at 10 MB, and the response's `content-type` is checked before the bytes
+ * are trusted: a URL that answers with HTML must not be forwarded as an icon.
+ */
+export async function resolveImageInput(value: string, label: string): Promise<Buffer> {
+  const trimmed = value.trim();
+  let buffer: Buffer;
+  let contentType: string | undefined;
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    const response = await fetch(trimmed, { redirect: "follow" });
+    if (!response.ok)
+      throw new Error(
+        `Could not download the ${label}: HTTP ${response.status} from the provided URL.`,
+      );
+    contentType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+    const declaredLength = Number(response.headers.get("content-length") ?? "0");
+    if (declaredLength > MAX_IMAGE_BYTES)
+      throw new Error(
+        `The ${label} at that URL is ${declaredLength} bytes, above the 10 MB limit.`,
+      );
+    buffer = Buffer.from(await response.arrayBuffer());
+  } else {
+    const match = /^data:([^;,]+);base64,(.*)$/is.exec(trimmed);
+    if (match) {
+      contentType = match[1]?.toLowerCase();
+      buffer = Buffer.from(match[2] ?? "", "base64");
+    } else {
+      buffer = Buffer.from(trimmed, "base64");
+    }
+  }
+
+  if (buffer.length === 0)
+    throw new Error(
+      `The ${label} is empty. Pass an https URL, a data: URI, or a base64-encoded image.`,
+    );
+  if (buffer.length > MAX_IMAGE_BYTES)
+    throw new Error(`The ${label} is ${buffer.length} bytes, above Discord's 10 MB limit.`);
+
+  const sniffed = sniffImageType(buffer);
+  if (!sniffed)
+    throw new Error(
+      `The ${label} does not look like a PNG, JPEG, GIF or WebP image. Discord rejects anything else.`,
+    );
+  if (
+    contentType &&
+    contentType !== "application/octet-stream" &&
+    !ALLOWED_IMAGE_TYPES.has(contentType)
+  )
+    throw new Error(
+      `The URL for the ${label} served "${contentType}", not an image. Expected one of ${[...ALLOWED_IMAGE_TYPES].join(", ")}.`,
+    );
+  return buffer;
+}
+
+/** Reads the magic bytes of a buffer and returns the matching MIME type, if any. */
+function sniffImageType(buffer: Buffer): string | null {
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  )
+    return "image/png";
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff)
+    return "image/jpeg";
+  if (buffer.length >= 6 && ["GIF87a", "GIF89a"].includes(buffer.subarray(0, 6).toString("ascii")))
+    return "image/gif";
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  )
+    return "image/webp";
+  return null;
+}
+
+/** Fetches a guild by ID, enforcing the guild allow-list. */
+export async function getGuild(guildId: string): Promise<Guild> {
+  const id = validateId(guildId, "guild_id");
+  assertAllowedGuild(id);
+  return discord.guilds.fetch(id);
 }
