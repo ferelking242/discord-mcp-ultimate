@@ -452,3 +452,24 @@ Deleted channels, roles, emoji, stickers, AutoMod rules and messages are gone.
 Discord has no undo, and this server does not claim otherwise. Destructive tools
 require the literal confirmation phrase (see `docs/SECURITY.md`) rather than a
 boolean, so a deletion cannot be triggered by a defaulted argument.
+
+## Verified against a live server
+
+These were reproduced while building a real community server with this MCP, on a
+fresh guild. They are Discord-side restrictions, not defects in the tools: the
+tools report the error faithfully, and each entry records what actually happens.
+
+| Attempt | Result | Explanation |
+| --- | --- | --- |
+| Create a `GuildNews` (announcement) channel on a guild without Community | `400 Invalid Form Body type[BASE_TYPE_CHOICES]` | Announcement channels require the `NEWS` feature, which comes with Community. |
+| `discord_enable_community` with verification level `none`/`low` | `403 150011 Server must raise verification level` | New guilds must reach at least `medium` before Community can be enabled. |
+| `discord_enable_community` with explicit content filter `disabled` | `403 150012 Server must enable content filtering on all members` | Community requires `all_members`. |
+| AutoMod baseline rule "Timeout repeat offenders" | `400 Action type 3 is not permitted` | The `TIMEOUT` AutoMod action is not available to this guild. The other three baseline rules are created; the failure is reported per-rule, not swallowed. |
+| `discord_set_welcome_screen` with a 145-character description | `400 Too big: expected string to have <=140 characters` | Discord caps the welcome-screen description at 140 characters. The Zod schema enforces the cap. |
+| `discord_edit_role` with a `reason` argument | `Invalid arguments. Unrecognized key: "reason"` | `discord_edit_role` takes no `reason`; the schema rejects the unknown key rather than ignoring it. |
+| Editing the bot's own highest role | `403 50013 Missing Permissions` | Discord forbids editing a role above the bot's own highest role. |
+
+Discord also does not allow an application to create a new guild: `POST /guilds`
+is restricted to applications in fewer than 10 guilds, and there is no bot-usable
+endpoint for it. `discord_architect_apply` therefore builds *inside* an existing
+server. See `discord_architect_explain_limits`.
