@@ -102,6 +102,15 @@ const registry: Map<string, ToolHandler> = (() => {
   return map;
 })();
 
+/** Merged name→schema-check table, parallel to {@link registry}. */
+const inputValidators: Map<string, (args: Record<string, unknown>) => void> = (() => {
+  const map = new Map<string, (args: Record<string, unknown>) => void>();
+  for (const mod of modules) {
+    for (const [name, validate] of mod.validators ?? []) map.set(name, validate);
+  }
+  return map;
+})();
+
 /**
  * Returns every tool definition across all modules.
  * Called on each tools/list request from the MCP client.
@@ -113,6 +122,44 @@ export function getAllDefinitions(): ToolDefinition[] {
 /** True if a tool with this name is registered (and not gated off). */
 export function hasTool(name: string): boolean {
   return registry.has(name);
+}
+
+/**
+ * Tools that must answer even when Discord is unreachable.
+ *
+ * These are the diagnostic and pure-computation tools. Gating them behind a
+ * successful login would make them useless in exactly the situation they exist
+ * for: a bot that cannot connect. `discord_verify_setup` in particular has to
+ * run before a token is even configured, so the model can be told what is wrong
+ * instead of receiving a bare connection error.
+ */
+const CONNECTION_FREE_TOOLS: ReadonlySet<string> = new Set([
+  "discord_verify_setup",
+  "discord_get_bot_profile_limits",
+  "discord_architect_explain_limits",
+  "discord_architect_plan",
+  "discord_style_name",
+  "discord_style_preview",
+  "discord_list_name_styles",
+]);
+
+/** True if the tool can run without an established Discord connection. */
+export function isConnectionFree(name: string): boolean {
+  return CONNECTION_FREE_TOOLS.has(name);
+}
+
+/**
+ * Validates a call's arguments against the tool's schema without running it.
+ *
+ * The server uses this to reject a malformed call before attempting to connect:
+ * otherwise a bad `guild_id` would be reported as "DISCORD_TOKEN is required",
+ * which sends the caller looking in the wrong place.
+ * @throws {Error} If the tool is unknown or the arguments do not match its schema.
+ */
+export function validateToolArgs(name: string, args: Record<string, unknown>): void {
+  const validator = inputValidators.get(name);
+  if (!validator) throw new Error(`Unknown tool: ${name}`);
+  validator(args);
 }
 
 /**

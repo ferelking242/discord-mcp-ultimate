@@ -48,6 +48,8 @@ const guildSettingsSummary = z.object({
   features: z.array(z.string()),
   community_enabled: z.boolean(),
   vanity_url_code: z.string().nullable(),
+  member_count: z.number(),
+  approximate_presence_count: z.number(),
 });
 
 /**
@@ -125,6 +127,8 @@ export async function readGuildSettings(guildId: string) {
     features: [...guild.features],
     community_enabled: guild.features.includes("COMMUNITY" as GuildFeature),
     vanity_url_code: vanity?.code ?? null,
+    member_count: guild.memberCount,
+    approximate_presence_count: guild.approximatePresenceCount ?? 0,
   };
 }
 
@@ -685,10 +689,52 @@ const tools = [
       id: z.string(),
       community_enabled: z.boolean(),
       features: z.array(z.string()),
+      missing_prerequisites: z.array(z.string()),
+      prerequisite_check_only: z.boolean(),
     }),
     handle: async ({ guild_id, enabled, rules_channel_id, public_updates_channel_id, reason }) => {
       const guild = await getGuild(guild_id);
       assertBotPermission(guild, "ManageGuild", "changing the Community feature");
+
+      // Discord rejects the first enable with a bare 400 unless a rules channel
+      // and a public-updates channel are supplied, and requires the rules channel
+      // to be an actual text channel with the Community-appropriate settings.
+      const missing: string[] = [];
+      if (enabled) {
+        const rulesId = rules_channel_id ?? guild.rulesChannelId;
+        const updatesId = public_updates_channel_id ?? guild.publicUpdatesChannelId;
+        if (!rulesId)
+          missing.push(
+            "No rules channel: pass rules_channel_id, or create one first with discord_create_channel and register it.",
+          );
+        else {
+          const rules = await guild.channels.fetch(rulesId).catch(() => null);
+          if (!rules)
+            missing.push(
+              `rules_channel_id ${rulesId} does not resolve to a channel in this server.`,
+            );
+        }
+        if (!updatesId)
+          missing.push(
+            "No public-updates channel: pass public_updates_channel_id, or create one first with discord_create_channel and register it.",
+          );
+        else {
+          const updates = await guild.channels.fetch(updatesId).catch(() => null);
+          if (!updates)
+            missing.push(
+              `public_updates_channel_id ${updatesId} does not resolve to a channel in this server.`,
+            );
+        }
+      }
+      if (missing.length > 0)
+        return structured({
+          id: guild.id,
+          community_enabled: guild.features.includes("COMMUNITY" as GuildFeature),
+          features: [...guild.features],
+          missing_prerequisites: missing,
+          prerequisite_check_only: true,
+        });
+
       const features = new Set<string>(guild.features);
       if (enabled) features.add("COMMUNITY");
       else features.delete("COMMUNITY");
@@ -708,6 +754,8 @@ const tools = [
         id: updated.id,
         community_enabled: updated.features.includes("COMMUNITY" as GuildFeature),
         features: [...updated.features],
+        missing_prerequisites: [],
+        prerequisite_check_only: false,
       });
     },
   }),

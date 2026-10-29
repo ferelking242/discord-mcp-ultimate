@@ -452,7 +452,13 @@ const tools = [
     }),
     handle: async ({ limit }) =>
       structured({
-        entries: readAuditTrail(limit),
+        entries: readAuditTrail(limit).map((entry) => ({
+          timestamp: entry.timestamp,
+          tool: entry.tool,
+          guild_id: entry.guildId,
+          summary: entry.summary,
+          outcome: entry.outcome,
+        })),
         note: "In-memory trail, capped at 500 entries, cleared on restart. This is the MCP server's record, not Discord's audit log.",
       }),
   }),
@@ -464,12 +470,14 @@ const tools = [
     schema: z.object({}),
     outputSchema: z.object({
       token_configured: z.boolean(),
+      token_length: z.number(),
       client_ready: z.boolean(),
       bot_tag: z.string().nullable(),
       guild_count: z.number(),
       ping_ms: z.number().nullable(),
       intents_requested: z.array(z.string()),
       toolsets_env: z.string().nullable(),
+      tool_count: z.number(),
       allowed_guilds_count: z.number(),
       problems: z.array(z.string()),
       next_steps: z.array(z.string()),
@@ -515,12 +523,16 @@ const tools = [
       }
       return structured({
         token_configured: tokenConfigured,
+        // The length is enough to catch a truncated paste, and unlike the value
+        // it is safe to put in a transcript.
+        token_length: process.env.DISCORD_TOKEN?.length ?? 0,
         client_ready: ready,
         bot_tag: discord.user?.tag ?? null,
         guild_count: guildCount,
         ping_ms: ready && discord.ws.ping >= 0 ? discord.ws.ping : null,
         intents_requested: intents,
         toolsets_env: process.env.DISCORD_MCP_TOOLSETS?.trim() ?? null,
+        tool_count: toolCount,
         allowed_guilds_count: allowedGuilds.length,
         problems,
         next_steps: nextSteps.length > 0 ? nextSteps : [`Registry exposes ${toolCount} tool(s).`],

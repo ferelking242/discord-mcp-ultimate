@@ -100,6 +100,8 @@ interface RegisteredTool {
   inputSchema: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
   run(args: Record<string, unknown>): Promise<ToolResult>;
+  /** Throws if `args` do not match the tool's schema. Runs no side effect. */
+  validate(args: Record<string, unknown>): void;
 }
 
 /**
@@ -139,6 +141,7 @@ export function defineTool<S extends z.ZodType>(tool: {
     annotations: tool.annotations,
     inputSchema: toInputSchema(schema),
     outputSchema: outputSchema ? toOutputSchema(outputSchema) : undefined,
+    validate: (args) => void schema.parse(args),
     run: async (args) => {
       const result = await tool.handle(schema.parse(args));
       if (outputSchema && result.structuredContent !== undefined) {
@@ -182,9 +185,11 @@ export function defineModule(tools: RegisteredTool[]): ToolModule {
     ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
   }));
   const handlers = new Map<string, RegisteredTool["run"]>();
+  const validators = new Map<string, RegisteredTool["validate"]>();
   for (const t of tools) {
     if (handlers.has(t.name)) throw new Error(`Duplicate tool name in module: ${t.name}`);
     handlers.set(t.name, t.run);
+    validators.set(t.name, t.validate);
   }
-  return { definitions, handlers };
+  return { definitions, handlers, validators };
 }

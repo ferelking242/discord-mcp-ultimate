@@ -8,7 +8,13 @@ import {
 
 import { ensureConnected } from "./client.js";
 import { formatToolError } from "./errors.js";
-import { getAllDefinitions, handleTool, hasTool } from "./tools/index.js";
+import {
+  getAllDefinitions,
+  handleTool,
+  hasTool,
+  isConnectionFree,
+  validateToolArgs,
+} from "./tools/index.js";
 
 /**
  * Builds the MCP server with the tool list/call handlers wired in, leaving the
@@ -28,7 +34,10 @@ export function createServer(version: string): Server {
     if (!hasTool(name)) throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${name}`);
 
     try {
-      await ensureConnected();
+      // Argument validation runs before the connection check: a malformed call
+      // must be reported as a malformed call, not as a missing token.
+      validateToolArgs(name, args);
+      if (!isConnectionFree(name)) await ensureConnected();
       return await handleTool(name, args);
     } catch (err: unknown) {
       return {

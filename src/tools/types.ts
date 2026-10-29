@@ -50,4 +50,10 @@ export type ToolHandler = (args: Record<string, unknown>) => Promise<ToolResult>
 export interface ToolModule {
   definitions: ToolDefinition[];
   handlers: ReadonlyMap<string, ToolHandler>;
+  /**
+   * Schema check for each tool's arguments, without running the handler. The
+   * server calls this before connecting so a malformed argument is reported as
+   * such instead of surfacing as a connection failure.
+   */
+  validators?: ReadonlyMap<string, (args: Record<string, unknown>) => void>;
 }
