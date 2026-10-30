@@ -350,6 +350,29 @@ l'identique**. Ce fork en ajoute **78**, pour un total de 177.
 | Sauvegarde et restauration | 3      | Export de la structure, comparaison, restauration additive                                                                                |
 | Diagnostic                 | 6      | Vérification de l'installation, permissions manquantes, journal d'audit                                                                   |
 | Planification              | 4      | Messages programmés, annonces structurées                                                                                                 |
+| Rôles par réaction         | 3      | Menus d'auto-attribution : l'IA crée le menu, le bot distribue les rôles                                                                  |
+
+### Le bot 24h/24
+
+`npm run bot` démarre un processus qui garde **une seule** connexion Discord et
+sert trois choses à la fois : les rôles par réaction, les DM de bienvenue, et le
+MCP en HTTP.
+
+```bash
+npm run bot        # construit puis démarre
+```
+
+Le MCP est alors joignable sur `/mcp`, avec un jeton Bearer obligatoire.
+`/health` répond sans authentification pour une sonde de supervision. Le port
+n'est **pas** ouvert par défaut : `MCP_HTTP_ENABLED=true` et `MCP_HTTP_TOKEN`
+sont tous les deux requis, sinon le processus refuse de démarrer.
+
+Un menu de rôles créé par l'IA est pris en compte par le bot **en moins de deux
+secondes, sans redémarrage** : les deux processus se rejoignent sur un fichier
+JSON que le bot surveille.
+
+Guide complet — systemd, Docker, reverse proxy, dépannage :
+[docs/BOT.md](docs/BOT.md).
 
 ### Points importants, énoncés franchement
 
@@ -365,6 +388,13 @@ l'identique**. Ce fork en ajoute **78**, pour un total de 177.
   global.
 - **Les suppressions sont irréversibles.** Discord n'a pas d'annulation, et le
   serveur ne prétend pas le contraire.
+- **Un serveur MCP en stdio n'a pas d'écouteur permanent.** Entre deux appels
+  d'outil, rien ne reçoit les événements Discord. C'est pour cela que les rôles
+  par réaction passent par le bot : lui reste éveillé.
+- **Le jeton Bearer circule en clair sur `http://`.** En local, sans importance.
+  À distance, mettez un reverse proxy TLS devant.
+- **Deux processus avec le même jeton se disputent la session Discord.** N'en
+  lancez qu'un.
 
 ### Sécurité
 
