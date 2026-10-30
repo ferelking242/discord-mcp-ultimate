@@ -2,7 +2,7 @@
 
 # Discord MCP Ultimate
 
-**A Discord MCP server with 173 tools — full server administration, driven by natural language**
+**A Discord MCP server with 174 tools — full server administration, driven by natural language**
 
 [![License](https://img.shields.io/github/license/ferelking242/discord-mcp-ultimate)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-green)](https://nodejs.org)
@@ -19,13 +19,13 @@ Messages, channels, roles, permissions, moderation, server settings, AutoMod, em
 ## What this is
 
 A fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) 2.2.0, MIT licensed.
-The 99 tools from that baseline are **preserved unchanged**. This fork adds 74
-tools, taking the total to 173, and adds a safety layer that the new tools go
+The 99 tools from that baseline are **preserved unchanged**. This fork adds 75
+tools, taking the total to 174, and adds a safety layer that the new tools go
 through.
 
 |                                                                     | Baseline 2.2.0      | This fork           |
 | ------------------------------------------------------------------- | ------------------- | ------------------- |
-| Tools                                                               | 99                  | **173**             |
+| Tools                                                               | 99                  | **174**             |
 | Server settings (name, icon, banner, Community, widget, onboarding) | —                   | 24 tools            |
 | Bot profile management                                              | —                   | 8 tools             |
 | Unicode name styling                                                | —                   | 4 tools             |
@@ -309,13 +309,13 @@ applied. Applying requires a second call with an explicit confirmation.
 
 ## En français
 
-**Discord MCP Ultimate** est un serveur MCP pour Discord, avec **173 outils**,
+**Discord MCP Ultimate** est un serveur MCP pour Discord, avec **174 outils**,
 pilotable en langage naturel depuis Claude Desktop, Claude Code, Cursor, VS Code
 Copilot ou tout client compatible MCP.
 
 C'est un fork de [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp)
 version 2.2.0 (licence MIT). Les **99 outils d'origine sont conservés à
-l'identique**. Ce fork en ajoute **74**, pour un total de 173.
+l'identique**. Ce fork en ajoute **75**, pour un total de 174.
 
 ### Ce qui a été ajouté
 
@@ -426,7 +426,7 @@ poignée de main MCP et vérifie la liste d'outils annoncée.
 
 | Document                                     | Contents                                                                                                      |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 173 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply |
+| [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 174 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply |
 | [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md)       | The 73 added tools, module by module, with the design decisions                                               |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Bot creation, intents, the full permission list, every client config, verification                            |
 | [docs/SECURITY.md](docs/SECURITY.md)         | Credential handling, preview/confirm gates, permission preflight, prompt-injection boundaries                 |

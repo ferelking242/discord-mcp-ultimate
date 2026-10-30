@@ -58,22 +58,31 @@ not `🇯🇵 Japanese`).
 
 ## Verified Discord limits
 
-| Limit                                    | Value          | How it was found                                   |
-| ---------------------------------------- | -------------- | -------------------------------------------------- |
-| Options per onboarding prompt            | **10**         | API rejected 15 with `TOO_MANY_ONBOARDING_OPTIONS` |
-| Default channels for advanced onboarding | **at least 7** | Documented; enforced on write                      |
-| Message content length                   | **2000**       | API rejected the 15-language rules post            |
-| Poll answers                             | 2–10           | Documented                                         |
-| Poll question                            | 300 chars      | Documented                                         |
-| Poll answer                              | 55 chars       | Documented                                         |
-| Poll duration                            | 1–768 hours    | Documented                                         |
-| Channel/role name                        | 100 chars      | Enforced in the style generator                    |
-| Guild description                        | 140 chars      | Hit while setting the Watchtower description       |
+| Limit                                    | Value          | How it was found                                                      |
+| ---------------------------------------- | -------------- | --------------------------------------------------------------------- |
+| Options per onboarding prompt            | **12**         | Bisected live: 12 accepted, 13 rejected `TOO_MANY_ONBOARDING_OPTIONS` |
+| Onboarding prompts per guild             | at least 3     | Three served and stored                                               |
+| Default channels for advanced onboarding | **at least 7** | Documented; enforced on write                                         |
+| Message content length                   | **2000**       | API rejected the 15-language rules post                               |
+| Poll answers                             | 2–10           | Documented                                                            |
+| Poll question                            | 300 chars      | Documented                                                            |
+| Poll answer                              | 55 chars       | Documented                                                            |
+| Poll duration                            | 1–768 hours    | Documented                                                            |
+| Channel/role name                        | 100 chars      | Enforced in the style generator                                       |
+| Guild description                        | 140 chars      | Hit while setting the Watchtower description                          |
 
-The 10-option cap is the one that shapes the design: 15 languages do not fit in
-one prompt, so they are split across a primary prompt (10) and a secondary
-"more languages" prompt (5). A single-select primary prompt keeps the common case
-to one click.
+The 12-option cap is the one that shapes the design: 15 languages do not fit in
+one prompt, so they are split across a primary prompt (11 languages + a "my
+language isn't here" bridge) and a secondary "more languages" prompt (4 + an
+"other language" entry). A single-select primary prompt keeps the common case to
+one click, and the bridge option is what lets a member reach the second prompt
+instead of dead-ending.
+
+> The cap was first written down as 10, from the single observation that 15 was
+> rejected. Bisecting the real boundary showed 12 is accepted, so the language
+> split was widened to use the two slots that were being wasted. Do not trust a
+> "rejected at N" result as the cap: only a bracketing pair (N accepted, N+1
+> rejected) gives the number.
 
 ## Applied to Watchtower
 
@@ -106,14 +115,27 @@ Structure:
 
 - Category `━━・🌍・LANGUAGES・━━` — 15 channels, one per language, each with a
   localized topic.
-- Onboarding — 3 prompts, 20 options:
-  1. `🌍 Choose your language` — single-select, required, 10 options, each granting
-     its role **and** revealing its channel.
-  2. `🌏 More languages` — single-select, optional, 5 options.
-  3. `🎭 What are you into?` — multi-select, optional, 5 interest roles.
+- Onboarding — 3 prompts, 22 options:
+  1. `🌍 Choose your language` — single-select, required, 12 options: the 11 most
+     common languages plus a `🌐 My language isn't here` bridge. Each language
+     grants its role **and** reveals its channel; the bridge grants none, it just
+     keeps the flow moving so a member whose language is further down is not stuck.
+  2. `🌏 More languages` — single-select, optional, 5 options: the remaining 4
+     languages plus a `✍️ Other language` entry pointing at `#💬・general-chat`.
+  3. `🎭 What are you into?` — multi-select, optional, 5 interests. Each option
+     grants its role **and** lists the channels of its category, so the interest
+     picks act as a second way to reveal the topic channels.
 - `#📜・rules` — the rules translated into all 15 languages across 3 messages
-  (the 2000-character cap).
+  (the 2000-character cap), followed by a pinned welcome banner embed that walks a
+  new member through language → rules → interests.
 - Each language channel carries a pinned welcome post in that language.
+
+The interest options name channels, not just roles, because a role on its own
+reveals nothing here: every interest category is public, so a member who picks
+"Anime" gets the role and the channels in one step instead of having to hunt for
+them. Note the limits of that: because the categories are public, the roles do
+not _hide_ anything — locking a category behind a role would remove access from
+members who already had it.
 
 ## Security note: language roles must not grant MentionEveryone
 
@@ -142,3 +164,28 @@ Rules for a self-assignable role:
 - **No native auto-translation.** Every message posted in one language stays in
   that language. Translation needs a bot, which is why Fergun is the one
   third-party bot recommended for translation.
+
+## Rules acceptance: what actually works
+
+A "react with ✅ to accept the rules" gate cannot be built by this MCP server, and
+that is an architectural fact, not a missing feature:
+
+- The server runs over **stdio** and connects to Discord lazily, on the first tool
+  call. It has no long-lived gateway listener, so nothing is awake to see a
+  reaction land.
+- The client does not even request the `GuildMessageReactions` intent, so reaction
+  events are never delivered. Adding the intent would not help on its own: a
+  stdio server is only running while its host is driving it.
+
+The reaction on the pinned welcome banner is therefore a **visual affordance**, not
+an enforced gate. The gate that Discord does enforce is **membership screening**:
+the member cannot post until they accept the form. The server configures that form
+with `discord_update_membership_screening`.
+
+One further limit, verified live: `discord_set_membership_gate` cannot **enable**
+the screening gate. Discord answers HTTP 200 to a `PATCH /guilds/{id}` that adds
+`MEMBER_VERIFICATION_GATE_ENABLED` and then silently drops the feature — the
+returned `features` array is unchanged. It must be switched on once by hand in the
+client (Server Settings → Safety Setup → Membership Screening). The tool reports
+the real post-call state, so a refusal shows up as `enabled: false` rather than a
+false success.

@@ -1,6 +1,6 @@
 # New tools — what was added, and why
 
-This document covers the 73 tools added on top of the 99 imported from
+This document covers the 75 tools added on top of the 99 imported from
 PaSympa/discord-mcp 2.2.0. For the full inventory, including the preserved
 tools, see [TOOL_AUDIT.md](./TOOL_AUDIT.md).
 
@@ -160,7 +160,7 @@ Covered by `test/serverArchitect.test.ts` (13 tests).
 
 ## 4. Guild settings — `src/tools/guildSettings.ts`
 
-**24 tools.** The server-level settings surface.
+**25 tools.** The server-level settings surface.
 
 Identity: `discord_get_guild_settings`, `discord_set_guild_name`,
 `discord_set_guild_icon`, `discord_remove_guild_icon`,
@@ -181,6 +181,12 @@ Widget: `discord_set_guild_widget`, `discord_get_guild_widget`.
 
 Onboarding: `discord_get_welcome_screen`, `discord_set_welcome_screen`,
 `discord_get_onboarding`, `discord_set_onboarding`.
+
+Membership gate: `discord_set_membership_gate`. It can switch the screening gate
+_off_, but not on: Discord returns HTTP 200 to a `PATCH /guilds/{id}` that adds
+`MEMBER_VERIFICATION_GATE_ENABLED` and then drops the feature. The tool reports
+the real post-call `features`, so a refusal is visible as `enabled: false`. See
+[MULTILINGUAL.md](./MULTILINGUAL.md#rules-acceptance-what-actually-works).
 
 `discord_get_bot_permissions` is worth calling out: it lists every permission
 flag this server's tools need, whether the bot currently has it, and which tools

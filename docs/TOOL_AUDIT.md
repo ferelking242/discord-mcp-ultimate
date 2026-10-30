@@ -21,13 +21,13 @@ are counted as _preserved_; everything else is _added_.
 | Metric                                              | Value |
 | --------------------------------------------------- | ----- |
 | Tools in the imported 2.2.0 baseline                | 99    |
-| Tools in this build                                 | 172   |
+| Tools in this build                                 | 174   |
 | Preserved unchanged                                 | 99    |
-| Added                                               | 73    |
+| Added                                               | 75    |
 | Removed                                             | 0     |
 | Read-only tools (`readOnlyHint`)                    | 65    |
 | Tools flagged `destructiveHint`                     | 25    |
-| Tools advertising an `outputSchema`                 | 107   |
+| Tools advertising an `outputSchema`                 | 108   |
 | Tools with a description shorter than 20 characters | 0     |
 | Tools whose `inputSchema` is not an object root     | 0     |
 
@@ -69,7 +69,7 @@ which return `applied: false` and say so in the payload.
 | `discord_list_channels`        | `guild_id`         | —                      | read-only | yes          |
 | `discord_find_channel_by_name` | `guild_id`, `name` | —                      | read-only | yes          |
 
-### `src/tools/messages.ts` — 20 tools (20 preserved, 0 added)
+### `src/tools/messages.ts` — 21 tools (20 preserved, 1 added)
 
 | Tool                              | Required params                                                                                                         | Bot permission checked | Hints                   | outputSchema |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------- | ----------------------- | ------------ |
@@ -92,6 +92,7 @@ which return `applied: false` and say so in the payload.
 | `discord_get_reactions`           | `channel_id`, `message_id`, `emoji`, limit                                                                              | —                      | read-only               | yes          |
 | `discord_get_message_attachments` | `channel_id`, `message_id`                                                                                              | —                      | read-only               | yes          |
 | `discord_fetch_pinned_messages`   | `channel_id`                                                                                                            | —                      | read-only               | yes          |
+| `discord_send_poll`               | `channel_id`, `question`, `answers`                                                                                     | —                      | —                       | yes          |
 | `discord_forward_message`         | `channel_id`, `message_id`, `target_channel_id`                                                                         | —                      | —                       | no           |
 
 ### `src/tools/channels.ts` — 8 tools (8 preserved, 0 added)
@@ -229,7 +230,7 @@ which return `applied: false` and say so in the payload.
 | `discord_read_dms`      | `user_id`, limit                                                                                                              | —                      | read-only   | yes          |
 | `discord_reply_dm`      | `user_id`, `message_id`, `content`                                                                                            | —                      | —           | no           |
 
-### `src/tools/guildSettings.ts` — 24 tools (0 preserved, 24 added)
+### `src/tools/guildSettings.ts` — 25 tools (0 preserved, 25 added)
 
 | Tool                                 | Required params                                                                                                                                                                | Bot permission checked | Hints                   | outputSchema |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- | ----------------------- | ------------ |
@@ -256,6 +257,7 @@ which return `applied: false` and say so in the payload.
 | `discord_set_welcome_screen`         | `guild_id`, enabled, description, welcome_channels                                                                                                                             | `ManageGuild`          | idempotent              | yes          |
 | `discord_get_onboarding`             | `guild_id`                                                                                                                                                                     | —                      | read-only               | yes          |
 | `discord_set_onboarding`             | `guild_id`, enabled, mode, default_channel_ids, prompts, reason                                                                                                                | `ManageGuild`          | idempotent              | yes          |
+| `discord_set_membership_gate`        | `guild_id`, `enabled`, reason                                                                                                                                                  | `ManageGuild`          | idempotent              | yes          |
 | `discord_get_bot_permissions`        | `guild_id`                                                                                                                                                                     | —                      | read-only               | yes          |
 
 ### `src/tools/botProfile.ts` — 8 tools (0 preserved, 8 added)
@@ -459,17 +461,17 @@ These were reproduced while building a real community server with this MCP, on a
 fresh guild. They are Discord-side restrictions, not defects in the tools: the
 tools report the error faithfully, and each entry records what actually happens.
 
-| Attempt | Result | Explanation |
-| --- | --- | --- |
-| Create a `GuildNews` (announcement) channel on a guild without Community | `400 Invalid Form Body type[BASE_TYPE_CHOICES]` | Announcement channels require the `NEWS` feature, which comes with Community. |
-| `discord_enable_community` with verification level `none`/`low` | `403 150011 Server must raise verification level` | New guilds must reach at least `medium` before Community can be enabled. |
-| `discord_enable_community` with explicit content filter `disabled` | `403 150012 Server must enable content filtering on all members` | Community requires `all_members`. |
-| AutoMod baseline rule "Timeout repeat offenders" | `400 Action type 3 is not permitted` | The `TIMEOUT` AutoMod action is not available to this guild. The other three baseline rules are created; the failure is reported per-rule, not swallowed. |
-| `discord_set_welcome_screen` with a 145-character description | `400 Too big: expected string to have <=140 characters` | Discord caps the welcome-screen description at 140 characters. The Zod schema enforces the cap. |
-| `discord_edit_role` with a `reason` argument | `Invalid arguments. Unrecognized key: "reason"` | `discord_edit_role` takes no `reason`; the schema rejects the unknown key rather than ignoring it. |
-| Editing the bot's own highest role | `403 50013 Missing Permissions` | Discord forbids editing a role above the bot's own highest role. |
+| Attempt                                                                  | Result                                                           | Explanation                                                                                                                                               |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create a `GuildNews` (announcement) channel on a guild without Community | `400 Invalid Form Body type[BASE_TYPE_CHOICES]`                  | Announcement channels require the `NEWS` feature, which comes with Community.                                                                             |
+| `discord_enable_community` with verification level `none`/`low`          | `403 150011 Server must raise verification level`                | New guilds must reach at least `medium` before Community can be enabled.                                                                                  |
+| `discord_enable_community` with explicit content filter `disabled`       | `403 150012 Server must enable content filtering on all members` | Community requires `all_members`.                                                                                                                         |
+| AutoMod baseline rule "Timeout repeat offenders"                         | `400 Action type 3 is not permitted`                             | The `TIMEOUT` AutoMod action is not available to this guild. The other three baseline rules are created; the failure is reported per-rule, not swallowed. |
+| `discord_set_welcome_screen` with a 145-character description            | `400 Too big: expected string to have <=140 characters`          | Discord caps the welcome-screen description at 140 characters. The Zod schema enforces the cap.                                                           |
+| `discord_edit_role` with a `reason` argument                             | `Invalid arguments. Unrecognized key: "reason"`                  | `discord_edit_role` takes no `reason`; the schema rejects the unknown key rather than ignoring it.                                                        |
+| Editing the bot's own highest role                                       | `403 50013 Missing Permissions`                                  | Discord forbids editing a role above the bot's own highest role.                                                                                          |
 
 Discord also does not allow an application to create a new guild: `POST /guilds`
 is restricted to applications in fewer than 10 guilds, and there is no bot-usable
-endpoint for it. `discord_architect_apply` therefore builds *inside* an existing
+endpoint for it. `discord_architect_apply` therefore builds _inside_ an existing
 server. See `discord_architect_explain_limits`.

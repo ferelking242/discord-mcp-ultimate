@@ -504,8 +504,7 @@ const tools = [
         }
       }
       const ready = discord.isReady();
-      if (connectionError)
-        problems.push(`The client could not connect: ${connectionError}`);
+      if (connectionError) problems.push(`The client could not connect: ${connectionError}`);
       else if (tokenConfigured && !ready)
         problems.push(
           "The client has not reached READY. Check the token, and that the privileged intents requested below are enabled in the Developer Portal (a missing one closes the connection with code 4014).",

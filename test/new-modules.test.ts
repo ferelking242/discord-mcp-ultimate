@@ -194,6 +194,48 @@ test("set_guild_name describes the guild-vs-bot-name distinction in its descript
   assert.match(def.description, /discord_set_bot_nickname/);
 });
 
+test("set_membership_gate sends the feature list and reports the real post-call state", async () => {
+  // Discord accepts the request but may drop the feature, so the fake returns a
+  // guild that does NOT carry it: the handler must report what Discord returned,
+  // not what was asked for.
+  const { guild, edits } = fakeGuild();
+  guild.features = ["COMMUNITY"] as never;
+  mock.method(discord.guilds, "fetch", async () => guild as never);
+  const res = await handler(
+    guildSettings,
+    "discord_set_membership_gate",
+  )({ guild_id: GUILD, enabled: true, reason: "gate" });
+  assert.equal(edits.length, 1);
+  assert.deepEqual(edits[0]!.features, ["COMMUNITY", "MEMBER_VERIFICATION_GATE_ENABLED"]);
+  assert.equal(edits[0]!.reason, "gate");
+  const data = res.structuredContent as { enabled: boolean; features: string[] };
+  assert.equal(data.enabled, false, "the reported state must come from Discord's response");
+});
+
+test("set_membership_gate removes the feature when disabling", async () => {
+  const { guild, edits } = fakeGuild();
+  guild.features = ["COMMUNITY", "MEMBER_VERIFICATION_GATE_ENABLED"] as never;
+  mock.method(discord.guilds, "fetch", async () => guild as never);
+  await handler(guildSettings, "discord_set_membership_gate")({ guild_id: GUILD, enabled: false });
+  assert.deepEqual(edits[0]!.features, ["COMMUNITY"]);
+});
+
+test("set_membership_gate refuses without Manage Server", async () => {
+  const { guild } = fakeGuild();
+  guild.members.me.permissions = new PermissionsBitField([]);
+  mock.method(discord.guilds, "fetch", async () => guild as never);
+  await assert.rejects(
+    () => handler(guildSettings, "discord_set_membership_gate")({ guild_id: GUILD, enabled: true }),
+    /lacks the ManageGuild permission/,
+  );
+});
+
+test("set_membership_gate documents that Discord refuses the enable over the API", () => {
+  const def = guildSettings.definitions.find((d) => d.name === "discord_set_membership_gate")!;
+  assert.match(def.description, /silently ignores/);
+  assert.match(def.description, /by hand/);
+});
+
 test("get_guild_settings returns the full server state without mutating", async () => {
   const { guild, edits } = fakeGuild();
   mock.method(discord.guilds, "fetch", async () => guild as never);

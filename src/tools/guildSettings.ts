@@ -1236,4 +1236,56 @@ const tools = [
   }),
 ];
 
+const MEMBERSHIP_GATE_FEATURE = "MEMBER_VERIFICATION_GATE_ENABLED" as const;
+
+tools.push(
+  defineTool({
+    name: "discord_set_membership_gate",
+    description:
+      "Turn the membership screening gate on or off by adding or removing the MEMBER_VERIFICATION_GATE_ENABLED feature. LIMITATION, verified against a live server: Discord returns HTTP 200 but silently ignores an API request to ADD this feature, so enabling it from here does not work. It must be turned on once by hand in the Discord client (Server Settings > Safety Setup > Membership Screening). Disabling it through this tool does work. The returned 'enabled' field always reflects the real state after the call, so treat enabled:false as Discord having refused. Requires the COMMUNITY feature and Manage Server.",
+    annotations: {
+      title: "Set membership gate",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    schema: z.object({
+      guild_id: guildId,
+      enabled: z
+        .boolean()
+        .describe("true to gate new members behind the screening form, false to stop gating."),
+      reason: z.string().optional().describe("Optional reason recorded in the audit log."),
+    }),
+    outputSchema: z.object({
+      id: z.string(),
+      enabled: z.boolean(),
+      features: z.array(z.string()),
+    }),
+    handle: async ({ guild_id, enabled, reason }) => {
+      const guild = await getGuild(guild_id);
+      assertBotPermission(guild, "ManageGuild", "changing the membership gate");
+      const wasEnabled = guild.features.includes(MEMBERSHIP_GATE_FEATURE);
+      const features = new Set<string>(guild.features);
+      if (enabled) features.add(MEMBERSHIP_GATE_FEATURE);
+      else features.delete(MEMBERSHIP_GATE_FEATURE);
+      const updated = await guild.edit({
+        features: [...features] as GuildFeature[],
+        ...(reason ? { reason } : {}),
+      });
+      recordAction({
+        tool: "discord_set_membership_gate",
+        guildId: guild_id,
+        summary: `Membership gate ${wasEnabled ? "on" : "off"} -> ${enabled ? "on" : "off"}`,
+        outcome: "applied",
+      });
+      return structured({
+        id: updated.id,
+        enabled: updated.features.includes(MEMBERSHIP_GATE_FEATURE),
+        features: [...updated.features],
+      });
+    },
+  }),
+);
+
 export default defineModule(tools);
