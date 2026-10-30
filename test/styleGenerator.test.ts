@@ -29,6 +29,38 @@ test("slugify strips accents, punctuation and repeated dashes", () => {
   assert.equal(slugify("***"), "");
 });
 
+test("slugify keeps non-Latin scripts instead of erasing them", () => {
+  // Regression: an ASCII-only [a-z0-9] filter collapsed every one of these to
+  // "", so six distinct language channels all fell back to the same name.
+  assert.equal(slugify("🇷🇺・русский"), "русский");
+  assert.equal(slugify("🇸🇦・العربية"), "العربية");
+  assert.equal(slugify("🇯🇵・日本語"), "日本語");
+  assert.equal(slugify("🇮🇳・हिन्दी"), "हिन्दी");
+  assert.equal(slugify("🇹🇭・ไทย"), "ไทย");
+  assert.equal(slugify("🇨🇳・中文"), "中文");
+  assert.equal(slugify("🇰🇷・한국어"), "한국어");
+});
+
+test("styling distinct language channels yields distinct names", () => {
+  const names = ["🇷🇺・русский", "🇸🇦・العربية", "🇯🇵・日本語", "🇮🇳・हिन्दी", "🇹🇭・ไทย"].map(
+    (n) => styleName(n, { style: "futuristic" }).name,
+  );
+  assert.equal(new Set(names).size, names.length, `names collided: ${JSON.stringify(names)}`);
+  for (const name of names) {
+    assert.ok(!name.includes("channel"), `"${name}" fell back to the generic name`);
+  }
+});
+
+test("styleName uses fallbackName so a rename keeps the entity's identity", () => {
+  // A name that slugifies to nothing still gets a stable, distinct result when
+  // the caller supplies the entity's real name.
+  const a = styleName("✨✨", { style: "futuristic", fallbackName: "🇷🇺・русский" });
+  const b = styleName("✨✨", { style: "futuristic", fallbackName: "🇯🇵・日本語" });
+  assert.equal(a.fallback, true);
+  assert.notEqual(a.name, b.name);
+  assert.equal(a.slug, "русский");
+});
+
 test("styleName strips zero-width and other invisible characters", () => {
   const withInvisibles = "gene\u200Bral\u200D-\uFEFFchat\u00AD";
   const styled = styleName(withInvisibles, { style: "minimal" });

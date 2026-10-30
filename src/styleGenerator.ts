@@ -57,17 +57,57 @@ function pick<T>(pool: readonly T[], seed: string): T {
   return pool[hash % pool.length]!;
 }
 
-/** Collapses arbitrary user text into a lowercase, dash-separated slug. */
+/**
+ * Collapses arbitrary user text into a lowercase, dash-separated slug.
+ *
+ * Letters and digits of every script are kept, not just ASCII: a channel named
+ * `🇷🇺・русский` must slug to `русский`, not to nothing. Restricting this to
+ * `[a-z0-9]` silently erased Cyrillic, Arabic, CJK, Devanagari and Thai names
+ * and pushed them all onto the same fallback, which renamed six distinct
+ * language channels to the identical name.
+ */
 export function slugify(input: string): string {
-  return input
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/['’]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
+  return (
+    input
+      .normalize("NFKD")
+      // Diacritics are stripped from Latin letters only. A blanket combining-mark
+      // strip also decomposed Cyrillic `й` into `и`, turning `русский` into
+      // `русскии`, and mangled Devanagari matras.
+      .replace(/([a-zA-Z])[\u0300-\u036f]+/g, "$1")
+      // Recompose, so Hangul Jamo and Cyrillic base+breve become single letters
+      // again before the character class below runs.
+      .normalize("NFC")
+      .toLowerCase()
+      .replace(/['’]/g, "")
+      // Variation selectors are category Mn, so \p{M} below would keep them and
+      // leave an invisible U+FE0F stranded in the name. Drop them explicitly.
+      .replace(/[\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/gu, "")
+      // \p{M} is kept: some scripts carry combining marks that are part of the word.
+      .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-{2,}/g, "-")
+  );
 }
+
+/**
+ * The first emoji in a name, or undefined.
+ *
+ * Used to carry an entity's existing emoji through a restyle. The flags are the
+ * reason this matters: `🇷🇺・русский` renamed to `✦・русский` loses the only
+ * language cue that works for a member who reads none of the offered languages.
+ * Matching anywhere, not just at the start, so `━━・🏛️・START HERE・━━` keeps its
+ * emoji too.
+ */
+export function extractEmoji(name: string): string | undefined {
+  return name.match(EMOJI_PATTERN)?.[0];
+}
+
+/**
+ * An emoji plus any trailing presentation selectors, keycaps, ZWJ sequences and
+ * skin-tone modifiers, so multi-code-point emoji survive intact.
+ */
+const EMOJI_PATTERN =
+  /(?:\p{Regional_Indicator}{2}|\p{Extended_Pictographic}(?:[\uFE0F\u20E3]|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)/u;
 
 /** Latin letters mapped to their Unicode Mathematical Bold counterparts. */
 const FULLWIDTH_MAP: Record<string, string> = {
@@ -186,9 +226,10 @@ const STYLES: Record<StyleId, StyleDefinition> = {
   bordered: {
     id: "bordered",
     label: "Bordered",
-    description: "Full box-drawing frame, useful for categories.",
-    decorate: (slug) => `╭・${slug}・╮`,
-    emojis: ["", "┤", "├"],
+    description:
+      "Full box-drawing frame. Emoji-aware, so it keeps a category's existing emoji inside the frame.",
+    decorate: (slug, emoji) => (emoji ? `╭・${emoji}・${slug}・╮` : `╭・${slug}・╮`),
+    emojis: [""],
   },
   emoji_lead: {
     id: "emoji_lead",
@@ -234,6 +275,17 @@ export interface StyleOptions {
   emoji?: string;
   /** Upper bound on the produced name length. Defaults to {@link DISCORD_NAME_MAX}. */
   maxLength?: number;
+  /**
+   * Name used when the input slugifies to nothing. Pass the entity's real name
+   * where one is known, so a rename never collapses two entities onto the same
+   * generic word.
+   */
+  fallbackName?: string;
+  /**
+   * Carry the source name's own emoji into the result instead of letting the
+   * style pick one. Keeps flags and per-channel icons intact across a restyle.
+   */
+  keepEmoji?: boolean;
 }
 
 /**
@@ -252,10 +304,15 @@ export function styleName(rawName: string, options: StyleOptions): StyledName {
   let slug = slugify(cleaned);
   let fallback = false;
   if (slug.length === 0) {
-    slug = "channel";
+    slug = slugify(options.fallbackName ?? "") || "channel";
     fallback = true;
   }
-  const emoji = options.emoji ?? pick(style.emojis, slug);
+  const emoji =
+    options.emoji ??
+    // Read the emoji from the raw name: the invisible-character strip above
+    // removes U+200D, which would break every ZWJ emoji (🧑‍💻 into 🧑).
+    (options.keepEmoji ? extractEmoji(rawName) : undefined) ??
+    pick(style.emojis, slug);
   const maxLength = options.maxLength ?? DISCORD_NAME_MAX;
 
   let candidate = style.decorate(slug, emoji);

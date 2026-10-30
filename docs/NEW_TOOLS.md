@@ -62,6 +62,35 @@ Covered by `test/safety.test.ts` (10 tests).
 Styles: `minimal`, `gaming`, `cyberpunk`, `futuristic`, `luxury`, `fantasy`,
 `anime`, `elegant`, `geometric`, `bordered`, `emoji_lead`, `fullwidth`.
 
+### Non-Latin names, emoji and safety
+
+Three defects found while restyling a real 15-language server, all fixed and
+covered by regression tests:
+
+1. **`slugify` erased every non-Latin script.** The filter was `[^a-z0-9]`, so
+   `русский`, `العربية`, `日本語`, `हिन्दी`, `ไทย` and `中文` all slugified to
+   `""` and fell back to the same generic name. Six distinct language channels
+   would have been renamed to six identical ones. The filter is now `\p{L}\p{N}`
+   (plus `\p{M}`, since some scripts carry combining marks inside a word).
+2. **Cyrillic `й` lost its breve.** A blanket combining-mark strip decomposed
+   `й` into `и`, turning `русский` into `русскии`. Diacritics are now stripped
+   from Latin letters only, and the string is recomposed with NFC afterwards.
+3. **Composed emoji were split apart.** `🧑‍💻` became `🧑`, because the
+   invisible-character strip removes U+200D, which is what holds a ZWJ sequence
+   together. The emoji is now read from the raw name before that strip runs.
+
+`discord_apply_name_theme` carries each entity's **existing emoji** into the new
+name (`keepEmoji`), so `🇷🇺・русский` becomes `🇷🇺︱русский` and keeps the flag that
+identifies the language. It also:
+
+- uses the entity's own name as the fallback, so an undecoratable name keeps its
+  identity instead of collapsing onto the word "channel";
+- **refuses to apply** when two entities would end up sharing a name, listing
+  them so they can be added to `keep_plain`. Discord permits duplicate names,
+  but they become indistinguishable in the sidebar;
+- accepts `announcement_channels` in `include`, so announcement channels are
+  themed alongside the rest.
+
 Example output: `✦・announcements`, `「📢」・news` is produced by the bordered and
 emoji_lead combination, `╭・community・╮`, `💬︱general-chat`, `୨୧・suggestions・୨୧`.
 

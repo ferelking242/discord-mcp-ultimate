@@ -148,7 +148,16 @@ const tools = [
       guild_id: guildId,
       theme: styleIdSchema.describe("Global style to apply."),
       include: z
-        .array(z.enum(["categories", "text_channels", "voice_channels", "forum_channels", "roles"]))
+        .array(
+          z.enum([
+            "categories",
+            "text_channels",
+            "voice_channels",
+            "forum_channels",
+            "announcement_channels",
+            "roles",
+          ]),
+        )
         .default(["categories", "text_channels", "voice_channels"])
         .describe("Which entity groups to rename. Defaults to categories and channels."),
       keep_plain: z
@@ -169,6 +178,8 @@ const tools = [
       renamed: z.array(z.object({ id: z.string(), from: z.string(), to: z.string() })),
       failures: z.array(z.object({ id: z.string(), error: z.string() })),
       skipped: z.array(z.string()),
+      collisions: z.array(z.object({ name: z.string(), from: z.array(z.string()) })).optional(),
+      error: z.string().optional(),
     }),
     handle: async ({ guild_id, theme, include, keep_plain, confirm }) => {
       const guild = await discord.guilds.fetch(guild_id);
@@ -192,6 +203,10 @@ const tools = [
         for (const ch of guild.channels.cache.values())
           if (ch.type === ChannelType.GuildForum)
             targets.push({ entity: ch, kind: "forum_channel" });
+      if (include.includes("announcement_channels"))
+        for (const ch of guild.channels.cache.values())
+          if (ch.type === ChannelType.GuildAnnouncement)
+            targets.push({ entity: ch, kind: "announcement_channel" });
       if (include.includes("roles"))
         for (const role of guild.roles.cache.values())
           if (role.name !== "@everyone" && !role.managed)
@@ -202,10 +217,28 @@ const tools = [
       const planned = targets
         .filter(({ entity }) => !keep.has(entity.name.toLowerCase()))
         .map(({ entity, kind }) => {
-          const styled = styleName(entity.name, { style: theme });
+          // The entity's own name is the fallback, so an undecoratable name
+          // keeps its identity instead of collapsing onto a generic word.
+          const styled = styleName(entity.name, {
+            style: theme,
+            fallbackName: entity.name,
+            keepEmoji: true,
+          });
           return { id: entity.id, kind, from: entity.name, to: styled.name, entity };
         })
         .filter((entry) => entry.to !== entry.from);
+
+      // Discord allows duplicate channel names, but they become impossible to
+      // tell apart in the sidebar, so surface them before anything is applied.
+      const byName = new Map<string, string[]>();
+      for (const entry of planned) {
+        const bucket = byName.get(entry.to) ?? [];
+        bucket.push(entry.from);
+        byName.set(entry.to, bucket);
+      }
+      const collisions = [...byName.entries()]
+        .filter(([, froms]) => froms.length > 1)
+        .map(([name, froms]) => ({ name, from: froms }));
 
       const gate = resolveGate({ confirm });
       if (gate.preview) {
@@ -222,11 +255,26 @@ const tools = [
           renamed: [],
           failures: [],
           skipped: [...keep],
+          collisions,
         });
       }
 
       const renamed: { id: string; from: string; to: string }[] = [];
       const failures: { id: string; error: string }[] = [];
+      if (collisions.length > 0) {
+        return structured({
+          mode: "apply",
+          applied: false,
+          planned: planned.map(({ id, kind, from, to }) => ({ id, kind, from, to })),
+          renamed: [],
+          failures: [],
+          skipped: [...keep],
+          collisions,
+          error:
+            `${collisions.length} target name(s) would be shared by more than one entity. ` +
+            `Add them to keep_plain and re-run.`,
+        });
+      }
       for (const entry of planned) {
         try {
           await entry.entity.setName(entry.to);
