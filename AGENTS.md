@@ -85,3 +85,44 @@ guarantee, change the document in the same commit.
   push with it fails with `403 Permission ... denied`. This cost time once.
 - Do not leave a credential in `.git/config`. Set the remote with the token,
   push, then reset the URL to the plain https form.
+
+## Bot and dashboard (this fork's own layers)
+
+`src/bot/` is the long-running bot, `src/dashboard/` the web panel. They are not
+MCP tools; do not add them to `src/tools/`.
+
+- **One gateway connection.** The bot, the reaction-role handlers and the MCP
+  HTTP transport share the `discord.js` client in `src/client.ts`. Opening a
+  second client with the same token gives Discord two sessions and duplicates
+  every event.
+- **Every store is a `JsonDocument`** (`src/bot/store.ts`). It writes to
+  `.tmp` and renames, so a crash mid-write leaves the previous version intact,
+  and it detects external changes by **content digest, not mtime** — an mtime
+  misses two writes in the same millisecond. Both processes poll, which is what
+  lets a dashboard edit reach the bot and the MCP tools without a restart.
+- **`BOT_DATA_DIR`** holds every state file. Tests must point it at a temp
+  directory; never let a test write into `.data/`.
+- **The dashboard shares the MCP port.** `createDashboardHandler` returns `false`
+  for a path it does not own so the bearer-authenticated `/mcp` and `/status`
+  still route. Adding a catch-all there breaks remote MCP. There is a test for
+  this in `test/dashboard.test.ts`.
+- **Config schema is Zod v4.** A nested default is `.default(() => schema.parse({}))`,
+  not a plain object. `loadConfig` refuses to start on an incoherent combination
+  (dashboard without a password, HTTP without a token) — keep those checks.
+- **Live verification matters.** Two real bugs (the `/mcp` 404 and the mtime
+  comparison) passed every unit test and only showed up when the bot ran against
+  Discord. Run `node dist/bot/index.js` with `DASHBOARD_ENABLED=true` before
+  claiming a dashboard change works.
+
+## Tool count
+
+`getAllDefinitions()` is authoritative: **177**. The README, `server.json`,
+`CHANGELOG.md` and `docs/TOOL_AUDIT.md` state it, and
+`test/registry.test.ts` asserts it. Adding a tool fails the build until the docs
+are updated — update them rather than relaxing the assertion.
+
+## Test scope
+
+`npm test` runs 284 tests against mocks and in-memory MCP transports. No Discord
+token, no live server. Tests that need a real gateway must not be added to the
+default `npm test` run.
