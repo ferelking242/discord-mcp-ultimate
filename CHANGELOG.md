@@ -40,6 +40,21 @@ enable the feature "in the dashboard", which no longer exists.
 
 The bot is now 25 slash commands, up from nine.
 
+**Fixed — three more dead settings, found by auditing every schema leaf.** A script
+compared each field of `guildConfigSchema` against how often it is read in
+`src/bot/`. `moderation.enabled` was never read, so `/ban` worked on a server where
+moderation was meant to be off; it now gates the commands. `moderation.logChannelId`
+could be set but never received anything; every case is now posted there, best
+effort, so a deleted channel cannot block the sanction. `prefix` was a settable,
+exportable text-command prefix with no prefix handler behind it — removed rather
+than wired up, since a second command engine duplicating the slash commands is code
+to maintain for nothing.
+
+**Fixed — `/ticket-panel` left two live panels.** `tickets.panelMessageId` was
+written but never read, so running the command twice produced a second panel and
+only one of the two matched the configuration. The command now reuses the recorded
+message when it is still in the right channel.
+
 **Configuration** — `/config` with `show`, `set`, `channel`, `text`, `role`,
 `number` and `import`. There is no web panel: a second service to deploy, secure
 and keep in sync is not worth it for a bot an operator already talks to in

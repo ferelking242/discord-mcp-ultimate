@@ -45,13 +45,38 @@ Aucun `/serverinfo`, `/userinfo`, `/avatar`, `/slowmode`, `/poll`, `/remind`,
 `/afk`, `/lock`. Un bot d'administration sans ces commandes oblige à repasser par
 l'interface Discord à la main.
 
-### 4. `DISCORD_ADMIN_ROLES` était un champ mort
+### 4. Trois autres champs morts, trouvés par audit automatique
+
+Après le premier passage, j'ai écrit un script qui compare chaque feuille du schéma
+`guildConfigSchema` au nombre de fois où elle est lue dans `src/bot/`. Trois champs
+de plus ne l'étaient jamais :
+
+- **`moderation.enabled`** — le bouton existait, `enabled: false` par défaut, et
+  rien ne le lisait. `/ban` fonctionnait donc sur un serveur où la modération était
+  censée être éteinte. Les commandes de modération et `/warn` refusent maintenant
+  de s'exécuter, avec le message qui dit comment l'activer.
+- **`moderation.logChannelId`** — on pouvait désigner un salon de journal, il ne
+  recevait rien. Chaque cas y est maintenant publié, en meilleur effort : un salon
+  supprimé ne doit pas empêcher la sanction.
+- **`prefix`** — un préfixe de commandes texte réglable et exportable, alors
+  qu'aucun gestionnaire de préfixe n'a jamais existé. Supprimé plutôt que branché :
+  écrire un moteur de commandes texte en doublon des slash commands serait du code
+  à maintenir pour rien.
+
+### 5. `/ticket-panel` laissait deux panneaux vivants
+
+`tickets.panelMessageId` était écrit mais jamais relu, donc relancer la commande
+créait un second panneau et le second bouton ne correspondait plus à la
+configuration. La commande réutilise maintenant le message enregistré quand il est
+encore dans le bon salon.
+
+### 6. `DISCORD_ADMIN_ROLES` était un champ mort
 
 `adminRoleIds` était lu depuis l'environnement, transmis au gestionnaire de
 commandes… et jamais consulté. La variable donnait l'illusion de restreindre les
 commandes d'administration. Elle est maintenant réellement vérifiée.
 
-### 5. Bug : le message de `/ticket-panel` parlait du dashboard
+### 7. Bug : le message de `/ticket-panel` parlait du dashboard
 
 > « Activez-les dans le tableau de bord. »
 

@@ -169,8 +169,6 @@ const moderationSchema = z.object({
 
 export const guildConfigSchema = z.object({
   guildId: snowflake,
-  /** Prefix for text commands. Slash commands do not need it. */
-  prefix: z.string().min(1).max(3).default("!"),
   welcome: welcomeSchema.default(() => welcomeSchema.parse({})),
   autorole: autoroleSchema.default(() => autoroleSchema.parse({})),
   logging: loggingSchema.default(() => loggingSchema.parse({})),

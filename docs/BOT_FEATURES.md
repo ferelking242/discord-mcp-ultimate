@@ -94,8 +94,8 @@ Manage Server. `show` prints the whole configuration as a JSON file you can keep
 | `reset`                    | Returns the guild to defaults, every feature off                |
 
 Every value is validated by the same Zod schema the bot reads through, so a value
-it refuses (a four-character prefix, a negative threshold) is rejected when you
-type it rather than silently at the next read. The `import` subcommand ignores the
+it refuses (an XP minimum above its cap, a negative threshold) is rejected when
+you type it rather than silently at the next read. The `import` subcommand ignores the
 `guildId` in the file: importing another server's configuration must not retarget
 this one.
 
@@ -106,7 +106,7 @@ Settings, by subcommand:
 - `channel` — `welcome`, `logging`, `starboard`, `levelsAnnounce`, `ticketsPanel`,
   `ticketsTranscript`, `ticketsCategory`, `tempVoiceCategory`, `moderationLog`.
 - `text` — `welcomeMessage`, `welcomeDm`, `goodbyeMessage`, `levelUpMessage`,
-  `ticketOpen`, `tempVoiceName`, `starboardEmoji`, `prefix`.
+  `ticketOpen`, `tempVoiceName`, `starboardEmoji`.
 - `number` — `autoroleMinAge`, `xpMin`, `xpMax`, `xpCooldown`, `starboardThreshold`,
   `giveawayMinAge`, `giveawayDuration`, `giveawayWinners`, `ticketsMax`,
   `tempVoiceLimit`, `tempVoiceTimeout`, `timeoutMinutes`.

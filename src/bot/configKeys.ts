@@ -29,7 +29,6 @@ export const TEXT_KEYS: ConfigKey[] = [
   { value: "ticketOpen", label: "Message d'ouverture de ticket", path: "tickets.openMessage" },
   { value: "tempVoiceName", label: "Nom des salons vocaux", path: "tempVoice.nameTemplate" },
   { value: "starboardEmoji", label: "Émoji du starboard", path: "starboard.emoji" },
-  { value: "prefix", label: "Préfixe des commandes texte", path: "prefix" },
 ];
 
 export const NUMBER_KEYS: ConfigKey[] = [

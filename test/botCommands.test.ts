@@ -14,7 +14,8 @@ import {
   nest,
 } from "../src/bot/configKeys.js";
 import { defaultGuildConfig, guildConfigSchema } from "../src/bot/guildConfig.js";
-import { checkTarget } from "../src/bot/moderation.js";
+import { checkTarget, recordCase } from "../src/bot/moderation.js";
+import { BotServices } from "../src/bot/services.js";
 import { AfkStore, ReminderStore } from "../src/bot/stores.js";
 import { humanDuration } from "../src/bot/utility.js";
 
@@ -31,7 +32,7 @@ describe("configKeys", () => {
     const record = base as unknown as Record<string, unknown>;
     for (const key of all) {
       const parts = key.path.split(".");
-      // A single-segment path (`prefix`) is a top-level field, not a section.
+      // A single-segment path would be a top-level field, not a section.
       if (parts.length === 1) {
         assert.ok(
           Object.hasOwn(record, parts[0]),
@@ -54,7 +55,8 @@ describe("configKeys", () => {
 
   it("nest builds the patch shape patch() expects", () => {
     assert.deepEqual(nest("welcome.message", "hi"), { welcome: { message: "hi" } });
-    assert.deepEqual(nest("prefix", "!"), { prefix: "!" });
+    // A single-segment path yields a flat object, not a nested one.
+    assert.deepEqual(nest("version", 1), { version: 1 });
   });
 
   it("nest output round-trips through the schema", () => {
@@ -74,9 +76,15 @@ describe("configKeys", () => {
   });
 
   it("rejects a value the schema refuses", () => {
-    // A three-character prefix is the schema's limit; four must not be accepted.
+    // The XP minimum is capped at 100; 999 must not be accepted.
     const base = defaultGuildConfig("123456789012345678");
-    assert.throws(() => guildConfigSchema.parse({ ...base, ...nest("prefix", "!!!!") }));
+    assert.throws(() => guildConfigSchema.parse({ ...base, ...nest("levels.xpMin", 999) }));
+  });
+
+  it("accepts a value the schema allows", () => {
+    const base = defaultGuildConfig("123456789012345678");
+    const merged = guildConfigSchema.parse({ ...base, ...nest("levels.xpMin", 20) });
+    assert.equal(merged.levels.xpMin, 20);
   });
 });
 
@@ -308,5 +316,142 @@ describe("humanDuration", () => {
 
   it("never returns an empty string", () => {
     assert.equal(humanDuration(0), "0 s");
+  });
+});
+
+describe("recordCase and the moderation log", () => {
+  const GUILD = "111111111111111111";
+  const LOG = "222222222222222222";
+
+  /** Real services over a temp dir; only the Discord API boundary is faked. */
+  async function services() {
+    const dir = await tempDir();
+    const svc = new BotServices(dir, {
+      info() {},
+      warn() {},
+      error() {},
+    });
+    await svc.loadAll();
+    return svc;
+  }
+
+  function fakeClient(sent: unknown[]) {
+    return {
+      channels: {
+        fetch: async (id: string) => ({
+          id,
+          isTextBased: () => true,
+          send: async (body: unknown) => {
+            sent.push(body);
+            return { id: "999" };
+          },
+        }),
+      },
+    } as never;
+  }
+
+  it("numbers cases sequentially per guild", async () => {
+    const svc = await services();
+    const base = {
+      guildId: GUILD,
+      targetId: "333333333333333333",
+      targetTag: "user#0001",
+      moderatorId: "444444444444444444",
+      moderatorTag: "mod#0001",
+      reason: "test",
+    };
+    const first = await recordCase(svc, { ...base, type: "warn" });
+    const second = await recordCase(svc, { ...base, type: "warn" });
+    assert.equal(first, 1);
+    assert.equal(second, 2);
+    assert.equal(svc.moderation.count(), 2);
+  });
+
+  it("keeps numbering per guild, not globally", async () => {
+    const svc = await services();
+    const base = {
+      targetId: "333333333333333333",
+      targetTag: "user#0001",
+      moderatorId: "444444444444444444",
+      moderatorTag: "mod#0001",
+      reason: "test",
+    };
+    await recordCase(svc, { ...base, guildId: GUILD, type: "warn" });
+    const other = await recordCase(svc, { ...base, guildId: "999999999999999999", type: "warn" });
+    assert.equal(other, 1);
+  });
+
+  it("does not post when no log channel is configured", async () => {
+    const svc = await services();
+    const sent: unknown[] = [];
+    await recordCase(svc, {
+      guildId: GUILD,
+      type: "ban",
+      targetId: "333333333333333333",
+      targetTag: "user#0001",
+      moderatorId: "444444444444444444",
+      moderatorTag: "mod#0001",
+      reason: "test",
+      client: fakeClient(sent),
+    });
+    assert.equal(sent.length, 0);
+  });
+
+  it("posts the case to the configured log channel", async () => {
+    const svc = await services();
+    await svc.guildConfig.patch(GUILD, { moderation: { logChannelId: LOG } });
+    const sent: { embeds: { data: { title: string } }[] }[] = [];
+    const number = await recordCase(svc, {
+      guildId: GUILD,
+      type: "ban",
+      targetId: "333333333333333333",
+      targetTag: "user#0001",
+      moderatorId: "444444444444444444",
+      moderatorTag: "mod#0001",
+      reason: "spam",
+      client: fakeClient(sent),
+    });
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].embeds[0].data.title, new RegExp(`Cas #${number}`));
+    assert.match(sent[0].embeds[0].data.title, /ban/);
+  });
+
+  it("records the case even when the log channel is gone", async () => {
+    // The record must survive a deleted log channel: the sanction is the point,
+    // the notification is not.
+    const svc = await services();
+    await svc.guildConfig.patch(GUILD, { moderation: { logChannelId: LOG } });
+    const brokenClient = {
+      channels: { fetch: async () => null },
+    } as never;
+    const number = await recordCase(svc, {
+      guildId: GUILD,
+      type: "kick",
+      targetId: "333333333333333333",
+      targetTag: "user#0001",
+      moderatorId: "444444444444444444",
+      moderatorTag: "mod#0001",
+      reason: "test",
+      client: brokenClient,
+    });
+    assert.equal(number, 1);
+    assert.equal(svc.moderation.count(), 1);
+  });
+
+  it("stores the duration on a timeout case", async () => {
+    const svc = await services();
+    await recordCase(svc, {
+      guildId: GUILD,
+      type: "timeout",
+      targetId: "333333333333333333",
+      targetTag: "user#0001",
+      moderatorId: "444444444444444444",
+      moderatorTag: "mod#0001",
+      reason: "calme-toi",
+      durationMs: 600_000,
+    });
+    const stored = svc.moderation.byNumber(GUILD, 1);
+    assert.equal(stored?.durationMs, 600_000);
+    assert.equal(stored?.active, true);
   });
 });

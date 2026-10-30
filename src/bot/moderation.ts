@@ -1,4 +1,5 @@
 import {
+  EmbedBuilder,
   PermissionFlagsBits,
   type ChatInputCommandInteraction,
   type GuildMember,
@@ -82,7 +83,26 @@ export function checkTarget(
   return { ok: true };
 }
 
-/** Records a case and returns its number. */
+/** The colour each case type carries in the moderation log. */
+const CASE_COLOURS: Record<string, number> = {
+  ban: 0xed4245,
+  unban: 0x57f287,
+  kick: 0xe67e22,
+  timeout: 0xfee75c,
+  untimeout: 0x57f287,
+  warn: 0xfaa61a,
+  note: 0x99aab5,
+  softban: 0xe67e22,
+  purge: 0x99aab5,
+};
+
+/**
+ * Records a case and returns its number.
+ *
+ * This also posts to the configured moderation log, which is the only thing that
+ * gives `moderation.logChannelId` an effect. The log entry is best-effort: a
+ * deleted or unreadable channel must not stop the sanction itself.
+ */
 export async function recordCase(
   services: BotServices,
   opts: {
@@ -94,9 +114,12 @@ export async function recordCase(
     moderatorTag: string;
     reason: string;
     durationMs?: number | null;
+    /** The client, to reach the log channel. */
+    client?: ChatInputCommandInteraction["client"];
   },
 ): Promise<number> {
   const number = services.moderation.nextNumber(opts.guildId);
+  const createdAt = new Date().toISOString();
   await services.moderation.add({
     number,
     guildId: opts.guildId,
@@ -107,10 +130,49 @@ export async function recordCase(
     moderatorTag: opts.moderatorTag,
     reason: opts.reason,
     durationMs: opts.durationMs ?? null,
-    createdAt: new Date().toISOString(),
+    createdAt,
     active: true,
   });
+
+  await postToLog(services, opts, number, createdAt);
   return number;
+}
+
+/** Posts one case to the moderation log, if one is configured and reachable. */
+async function postToLog(
+  services: BotServices,
+  opts: {
+    guildId: string;
+    type: CaseType;
+    targetTag: string;
+    moderatorTag: string;
+    reason: string;
+    durationMs?: number | null;
+    client?: ChatInputCommandInteraction["client"];
+  },
+  number: number,
+  createdAt: string,
+): Promise<void> {
+  const channelId = services.guildConfig.get(opts.guildId).moderation.logChannelId;
+  if (!channelId || !opts.client) return;
+  const channel = await opts.client.channels.fetch(channelId).catch(() => null);
+  if (!channel?.isTextBased() || !("send" in channel)) return;
+  await channel
+    .send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(CASE_COLOURS[opts.type] ?? 0x5865f2)
+          .setTitle(`Cas #${number} — ${opts.type}`)
+          .addFields(
+            { name: "Membre", value: opts.targetTag, inline: true },
+            { name: "Modérateur", value: opts.moderatorTag, inline: true },
+            { name: "Raison", value: opts.reason.slice(0, 1000) },
+          )
+          .setTimestamp(new Date(createdAt)),
+      ],
+      allowedMentions: { parse: [] },
+    })
+    .catch(() => null);
 }
 
 /** DMs the member about the action. A closed DM is not an error. */
@@ -151,6 +213,16 @@ export async function handleModeration(
 
   const guildId = interaction.guildId!;
   const guild = interaction.guild!;
+
+  if (!ctx.services.guildConfig.get(guildId).moderation.enabled) {
+    await interaction.reply({
+      content:
+        "La modération est désactivée sur ce serveur. Activez-la avec `/config set fonction:moderation actif:true`.",
+      ephemeral: true,
+    });
+    return true;
+  }
+
   const me = guild.members.me;
   if (!me) {
     await interaction.reply({ content: "Je ne peux pas lire mes permissions.", ephemeral: true });
@@ -189,6 +261,7 @@ export async function handleModeration(
       moderatorId: interaction.user.id,
       moderatorTag: interaction.user.tag,
       reason: `Purge de ${deleted.size} message(s)`,
+      client: interaction.client,
     });
     await interaction.editReply({ content: `${deleted.size} message(s) supprimé(s).` });
     return true;
@@ -255,6 +328,7 @@ export async function handleModeration(
       moderatorId: interaction.user.id,
       moderatorTag: interaction.user.tag,
       reason,
+      client: interaction.client,
     });
     await interaction.reply({ content: `Note enregistrée — cas #${number}.`, ephemeral: true });
     return true;
@@ -285,6 +359,7 @@ export async function handleModeration(
       moderatorId: interaction.user.id,
       moderatorTag: interaction.user.tag,
       reason,
+      client: interaction.client,
     });
     await notifyTarget(
       ctx.services,
@@ -319,6 +394,7 @@ export async function handleModeration(
       moderatorId: interaction.user.id,
       moderatorTag: interaction.user.tag,
       reason,
+      client: interaction.client,
     });
     await notifyTarget(
       ctx.services,
@@ -364,6 +440,7 @@ export async function handleModeration(
       moderatorTag: interaction.user.tag,
       reason,
       durationMs: capped,
+      client: interaction.client,
     });
     await notifyTarget(
       ctx.services,
@@ -401,6 +478,7 @@ export async function handleModeration(
       moderatorId: interaction.user.id,
       moderatorTag: interaction.user.tag,
       reason,
+      client: interaction.client,
     });
     try {
       await member.timeout(null, `${interaction.user.tag} : ${reason}`);

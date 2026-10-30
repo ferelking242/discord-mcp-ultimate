@@ -398,6 +398,14 @@ export async function handleCommand(
     }
 
     case "warn": {
+      if (!cfg.moderation.enabled) {
+        await interaction.reply({
+          content:
+            "La modération est désactivée sur ce serveur. Activez-la avec `/config set fonction:moderation actif:true`.",
+          ephemeral: true,
+        });
+        return true;
+      }
       const user = interaction.options.getUser("membre", true);
       const reason = interaction.options.getString("raison", true);
       // A fetched member, not the interaction's resolved one: only the fetched
@@ -535,7 +543,7 @@ export async function handleCommand(
         await interaction.editReply({ content: "Ce salon ne peut pas recevoir le panneau." });
         return true;
       }
-      const panel = await channel.send({
+      const panelBody = {
         embeds: [
           new EmbedBuilder()
             .setColor(0x5865f2)
@@ -546,11 +554,33 @@ export async function handleCommand(
         ],
         components: [
           {
-            type: 1,
-            components: [{ type: 2, style: 1, label: "Ouvrir un ticket", customId: "ticket:open" }],
+            type: 1 as const,
+            components: [
+              {
+                type: 2 as const,
+                style: 1 as const,
+                label: "Ouvrir un ticket",
+                customId: "ticket:open",
+              },
+            ],
           },
         ],
-      });
+      };
+
+      // Reuse the recorded panel when it is still in this channel. Running the
+      // command twice otherwise leaves two live panels, and only one of them is
+      // the one the config points at.
+      const existingId = cfg.tickets.panelMessageId;
+      if (existingId && cfg.tickets.panelChannelId === channel.id) {
+        const existing = await channel.messages.fetch(existingId).catch(() => null);
+        if (existing) {
+          await existing.edit(panelBody).catch(() => null);
+          await interaction.editReply({ content: `Panneau mis à jour dans ${channel}.` });
+          return true;
+        }
+      }
+
+      const panel = await channel.send(panelBody);
       await ctx.services.guildConfig.patch(guildId, {
         tickets: { panelChannelId: channel.id, panelMessageId: panel.id },
       });
