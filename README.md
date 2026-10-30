@@ -12,9 +12,13 @@
 Manage an entire Discord server from **Claude Desktop**, **Claude Code**, **Cursor**, **VS Code Copilot**, or any MCP-compatible client.
 Messages, channels, roles, permissions, moderation, server settings, AutoMod, emoji and stickers, and a server architect that builds a structure from a plan.
 
-The same repository ships a **long-running bot** (`npm run bot`) that keeps one gateway connection open:
-reaction roles, welcome DMs, and the MCP tool surface served over authenticated HTTP so a remote agent can drive it.
-See [docs/BOT.md](docs/BOT.md).
+The same repository ships a **complete bot** (`npm run bot`) that keeps one gateway connection open:
+reaction roles, welcome messages, autoroles, levels, logging, moderation with
+numbered cases, tickets, giveaways, a starboard, temporary voice channels, an
+autoresponder, slash commands, and the MCP tool surface served over authenticated
+HTTP so a remote agent can drive it. It also serves a **web dashboard**.
+See [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md), [docs/DASHBOARD.md](docs/DASHBOARD.md)
+and [docs/BOT.md](docs/BOT.md).
 
 </div>
 
@@ -38,6 +42,8 @@ through.
 | Emoji and stickers                                                  | —                   | 8 tools             |
 | Structure backup and restore                                        | —                   | 3 tools             |
 | Diagnostics and audit trail                                         | —                   | 6 tools             |
+| Message scheduling                                                  | —                   | 4 tools             |
+| Reaction-role menus                                                 | —                   | 3 tools             |
 | Scheduling and announcements                                        | —                   | 4 tools             |
 | Native polls                                                        | —                   | 1 tool              |
 | Reaction-role menus (needs the bot)                                 | —                   | 3 tools             |
@@ -77,16 +83,35 @@ application, the intents, the exact permission list, and the invite URL.
 ### Run it 24/7 as a bot
 
 ```bash
-npm run bot          # build, then start bot + HTTP MCP
+npm run bot          # build, then start the bot
 ```
+
+The bot keeps one Discord connection and runs every server feature from it:
+welcome messages, autoroles, levels, logging, moderation, tickets, giveaways,
+starboard, temporary voice channels, an autoresponder and slash commands.
+
+Add the HTTP plane to expose MCP remotely and serve the dashboard:
 
 ```bash
 MCP_HTTP_ENABLED=true MCP_HTTP_TOKEN=$(openssl rand -hex 32) npm run bot:start
 ```
 
-This exposes `/health` (no auth), `/status` and `/mcp` (bearer token). The full
-deployment guide — systemd, Docker, reverse proxy, troubleshooting — is
-[docs/BOT.md](docs/BOT.md).
+That exposes `/health` (no auth), `/status` and `/mcp` (bearer token). Add
+`DASHBOARD_ENABLED=true` and a password for the web panel:
+
+```bash
+node scripts/hash-password.js       # prints DASHBOARD_PASSWORD_HASH
+```
+
+Guides: [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) for the features,
+[docs/DASHBOARD.md](docs/DASHBOARD.md) for the panel, and
+[docs/BOT.md](docs/BOT.md) for deployment — systemd, Docker, reverse proxy,
+troubleshooting.
+
+The HTTP plane binds to `127.0.0.1` and stays off unless asked for. It holds the
+bot token and the destructive tool surface, so an unauthenticated port would be
+remote administration of the server; `MCP_HTTP_ENABLED=true` without
+`MCP_HTTP_TOKEN` is refused at startup rather than left open.
 
 Once connected, ask it to run `discord_verify_setup` — it takes no arguments and
 tells you whether the token, the intents, the toolsets and the connection are all
@@ -329,7 +354,7 @@ applied. Applying requires a second call with an explicit confirmation.
 
 ## En français
 
-**Discord MCP Ultimate** est un serveur MCP pour Discord, avec **177 outils** et un bot 24h/24,
+**Discord MCP Ultimate** est un serveur MCP pour Discord, avec **177 outils**, un bot 24h/24 et un tableau de bord web,
 pilotable en langage naturel depuis Claude Desktop, Claude Code, Cursor, VS Code
 Copilot ou tout client compatible MCP.
 
@@ -352,11 +377,15 @@ l'identique**. Ce fork en ajoute **78**, pour un total de 177.
 | Planification              | 4      | Messages programmés, annonces structurées                                                                                                 |
 | Rôles par réaction         | 3      | Menus d'auto-attribution : l'IA crée le menu, le bot distribue les rôles                                                                  |
 
+Le dépôt contient aussi un **bot complet** et un **tableau de bord web**, qui ne
+sont pas des outils MCP mais des processus : voir la section suivante.
+
 ### Le bot 24h/24
 
 `npm run bot` démarre un processus qui garde **une seule** connexion Discord et
-sert trois choses à la fois : les rôles par réaction, les DM de bienvenue, et le
-MCP en HTTP.
+fait tourner tout le serveur : accueil, rôles automatiques, niveaux, journaux,
+modération avec dossiers numérotés, tickets, concours, starboard, salons vocaux
+temporaires, répondeur, commandes slash, rôles par réaction et MCP en HTTP.
 
 ```bash
 npm run bot        # construit puis démarre
@@ -369,10 +398,40 @@ sont tous les deux requis, sinon le processus refuse de démarrer.
 
 Un menu de rôles créé par l'IA est pris en compte par le bot **en moins de deux
 secondes, sans redémarrage** : les deux processus se rejoignent sur un fichier
-JSON que le bot surveille.
+JSON que le bot surveille. Il en va de même pour toute la configuration.
 
-Guide complet — systemd, Docker, reverse proxy, dépannage :
-[docs/BOT.md](docs/BOT.md).
+Commandes disponibles : `/ping`, `/rank`, `/leaderboard`, `/warn`, `/cases`,
+`/giveaway`, `/ticket-panel`, `/config`, `/permissions`.
+
+#### Le tableau de bord
+
+Une interface web pour tout régler sans passer par l'IA : bienvenue, rôles
+automatiques, niveaux, journaux, modération, tickets, concours, starboard, vocal
+temporaire et répondeur. Elle tourne **dans le processus du bot**, sur le même
+port que le MCP — pas de second service, pas de base de données, pas de build.
+
+```bash
+node scripts/hash-password.js       # affiche DASHBOARD_PASSWORD_HASH
+```
+
+```bash
+DASHBOARD_ENABLED=true
+DASHBOARD_PASSWORD_HASH=scrypt$...
+DASHBOARD_OPERATOR_ID=ton_id_discord
+```
+
+Le processus **refuse de démarrer** si le tableau de bord est activé sans mot de
+passe : une interface non protégée serait de l'administration à distance du bot.
+
+Sécurité : mot de passe scrypt, cookie de session signé et `HttpOnly`, jeton CSRF
+sur chaque modification, `SameSite=Strict`, CSP sans script en ligne, limitation
+des tentatives de connexion par adresse. Détails, API JSON et dépannage :
+[docs/DASHBOARD.md](docs/DASHBOARD.md).
+
+Guides complets : [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) pour les
+fonctionnalités, [docs/DASHBOARD.md](docs/DASHBOARD.md) pour le tableau de bord,
+et [docs/BOT.md](docs/BOT.md) pour le déploiement — systemd, Docker, reverse
+proxy, dépannage.
 
 ### Points importants, énoncés franchement
 
@@ -466,7 +525,7 @@ Montre-moi un aperçu avant de supprimer ces salons : 111..., 222...
 npm test
 ```
 
-145 tests, exécutés sans jeton Discord et sans serveur réel, grâce à des mocks et
+282 tests, exécutés sans jeton Discord et sans serveur réel, grâce à des mocks et
 un transport MCP en mémoire. `test/serverHandshake.test.ts` effectue une vraie
 poignée de main MCP et vérifie la liste d'outils annoncée.
 
@@ -474,13 +533,16 @@ poignée de main MCP et vérifie la liste d'outils annoncée.
 
 ## Documentation
 
-| Document                                     | Contents                                                                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 177 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply |
-| [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md)       | The 73 added tools, module by module, with the design decisions                                               |
-| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Bot creation, intents, the full permission list, every client config, verification                            |
-| [docs/SECURITY.md](docs/SECURITY.md)         | Credential handling, preview/confirm gates, permission preflight, prompt-injection boundaries                 |
-| [CHANGELOG.md](CHANGELOG.md)                 | Version history                                                                                               |
+| Document                                     | Contents                                                                                                                |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 177 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply           |
+| [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md)       | The 78 added tools, module by module, with the design decisions                                                         |
+| [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) | Every bot feature: welcome, autoroles, levels, logging, moderation, tickets, giveaways, starboard, voice, autoresponder |
+| [docs/DASHBOARD.md](docs/DASHBOARD.md)       | The web panel: setup, security model, JSON API, storage, troubleshooting                                                |
+| [docs/CREDITS.md](docs/CREDITS.md)           | The open-source bots studied while designing the bot and dashboard layers                                               |
+| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Bot creation, intents, the full permission list, every client config, verification                                      |
+| [docs/SECURITY.md](docs/SECURITY.md)         | Credential handling, preview/confirm gates, permission preflight, prompt-injection boundaries                           |
+| [CHANGELOG.md](CHANGELOG.md)                 | Version history                                                                                                         |
 
 ---
 
@@ -500,6 +562,18 @@ description of the tool it affects.
 - **Deleted entities are gone.** Discord has no undo.
 - **Scheduled tasks live in the server process** and do not survive a restart.
   Use an external scheduler for durable timing.
+- **A bot cannot create a new server**, so the dashboard and the bot configure
+  servers you have already created and invited the bot to.
+- **Giveaway draws are polled every 20 seconds**, not scheduled, so a draw can
+  happen up to 20 seconds after the deadline. That is deliberate: a timer would
+  not survive a restart, and a giveaway that ends while the bot is down would
+  never be drawn.
+- **The dashboard has one account, not a user table.** It is built for a
+  self-hosted bot with one operator.
+- **The bearer token and the dashboard session cross the network in clear over
+  `http`.** Locally that is fine; expose the port only behind TLS.
+- **Logging cannot name the actor without View Audit Log.** The event is still
+  logged, just without the moderator's name.
 
 ---
 
@@ -509,7 +583,7 @@ description of the tool it affects.
 npm ci
 npm run build      # tsc
 npm run lint       # eslint
-npm test           # node:test, 145 tests
+npm test           # node:test, 282 tests
 npm run format     # prettier
 ```
 
@@ -523,7 +597,12 @@ performs a real MCP handshake and asserts the advertised tool list.
 
 MIT. See [LICENSE](LICENSE).
 
-This is a fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) by
+This is a fork of [PaSymPa/discord-mcp](https://github.com/PaSympa/discord-mcp) by
 Léandre Moreau. The 99 tools in the imported baseline are that project's work,
-preserved unchanged, including their original copyright notice. The 73 added
-tools, the safety layer and the documentation are new in this fork.
+preserved unchanged, including their original copyright notice — see
+[NOTICE](NOTICE). The 78 added tools, the bot, the dashboard, the safety layer and
+the documentation are new in this fork.
+
+[docs/CREDITS.md](docs/CREDITS.md) records the other open-source bots studied
+while designing the bot and dashboard layers, and states plainly that no code was
+copied from any of them.

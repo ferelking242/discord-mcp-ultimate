@@ -1,0 +1,26 @@
+Discord MCP Ultimate
+====================
+
+This project is a fork of PaSympa/discord-mcp, version 2.2.0.
+
+  Original work: Copyright (c) 2026 Léandre Moreau
+  Original repository: https://github.com/PaSympa/discord-mcp
+  Original licence: MIT (reproduced verbatim in LICENSE)
+
+The MIT licence of the original work is preserved unchanged, and the original
+copyright notice above is retained as that licence requires.
+
+Added in this fork:
+
+  - 78 MCP tools beyond the original 99 (server settings, bot profile audit,
+    Unicode name styling, a resumable server architect, AutoMod, emoji and
+    sticker management, structure backup, diagnostics, message scheduling,
+    reaction-role menus)
+  - a long-running bot process (welcome, autoroles, levels, logging,
+    moderation, tickets, giveaways, starboard, temporary voice channels,
+    autoresponder, slash commands)
+  - a web dashboard
+  - a test suite covering all of the above
+
+See docs/CREDITS.md for the open-source projects studied while designing the
+bot and dashboard layers. No code was copied from any of them.

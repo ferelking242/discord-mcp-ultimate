@@ -37,6 +37,11 @@ const schema = z.object({
   /** Reaction-role mapping file. Created on first write. */
   reactionRolesFile: z.string().default(".data/reaction-roles.json"),
   /**
+   * Directory holding every state file. Defaults to the directory of
+   * `reactionRolesFile`, so a deployment that already set that path keeps it.
+   */
+  dataDir: z.string().optional(),
+  /**
    * `toggle` removes the role when the reaction is removed, `add-only` keeps the
    * role once granted. Toggle is the default because it is what members expect
    * from a reaction menu.
@@ -68,6 +73,40 @@ const schema = z.object({
    * control plane would be an unauthenticated remote-admin endpoint.
    */
   httpToken: z.string().optional(),
+
+  // ── Slash commands ──────────────────────────────────────────────────────────
+  /**
+   * Registers commands to this guild only, which takes effect immediately. Unset
+   * means global registration, which Discord can take an hour to propagate.
+   */
+  devGuildId: z.string().optional(),
+  /** Roles allowed to run operator commands, in addition to Manage Server. */
+  adminRoleIds: z
+    .string()
+    .optional()
+    .transform((v) =>
+      (v ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+
+  // ── Dashboard ───────────────────────────────────────────────────────────────
+  /** Serves the web dashboard on the HTTP port. Requires a password below. */
+  dashboardEnabled: bool(false),
+  /** Plaintext password, hashed in memory at startup. */
+  dashboardPassword: z.string().optional(),
+  /** `scrypt$...` hash. Preferred over the plaintext: a leaked env file leaks less. */
+  dashboardPasswordHash: z.string().optional(),
+  /** Signs session cookies. Unset means a random per-process key, so sessions end on restart. */
+  dashboardSessionSecret: z.string().optional(),
+  /** Marks cookies `Secure`. Turn on only behind TLS, or the login loop never completes. */
+  dashboardSecureCookies: bool(false),
+  /**
+   * The Discord id recorded as the actor for moderation taken from the dashboard.
+   * Without it, dashboard moderation is refused: an unattributable ban is useless.
+   */
+  dashboardOperatorId: z.string().optional(),
 });
 
 export type BotConfig = z.infer<typeof schema> & { token: string };
@@ -78,6 +117,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BotConfig {
     token: env.DISCORD_TOKEN,
     allowedGuilds: env.DISCORD_ALLOWED_GUILDS,
     reactionRolesFile: env.BOT_REACTION_ROLES_FILE,
+    dataDir: env.BOT_DATA_DIR,
     reactionMode: env.BOT_REACTION_MODE,
     reactionLimitPerMember: env.BOT_REACTION_LIMIT,
     reactionWindowMs: env.BOT_REACTION_WINDOW_MS,
@@ -89,6 +129,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BotConfig {
     httpHost: env.MCP_HTTP_HOST,
     httpPort: env.MCP_HTTP_PORT,
     httpToken: env.MCP_HTTP_TOKEN,
+    devGuildId: env.DISCORD_DEV_GUILD,
+    adminRoleIds: env.DISCORD_ADMIN_ROLES,
+    dashboardEnabled: env.DASHBOARD_ENABLED,
+    dashboardPassword: env.DASHBOARD_PASSWORD,
+    dashboardPasswordHash: env.DASHBOARD_PASSWORD_HASH,
+    dashboardSessionSecret: env.DASHBOARD_SESSION_SECRET,
+    dashboardSecureCookies: env.DASHBOARD_SECURE_COOKIES,
+    dashboardOperatorId: env.DASHBOARD_OPERATOR_ID,
   });
   if (!parsed.success) {
     const detail = parsed.error.issues
@@ -100,6 +148,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BotConfig {
   if (cfg.httpEnabled && !cfg.httpToken) {
     throw new Error(
       "MCP_HTTP_TOKEN is required when MCP_HTTP_ENABLED is on: the HTTP control plane would otherwise be reachable without authentication.",
+    );
+  }
+  if (cfg.dashboardEnabled && !cfg.httpEnabled) {
+    throw new Error(
+      "DASHBOARD_ENABLED needs MCP_HTTP_ENABLED: the dashboard is served on the HTTP port.",
+    );
+  }
+  if (cfg.dashboardEnabled && !cfg.dashboardPassword && !cfg.dashboardPasswordHash) {
+    throw new Error(
+      "the dashboard needs DASHBOARD_PASSWORD or DASHBOARD_PASSWORD_HASH: without one, anyone reaching the port could administer the bot.",
     );
   }
   return cfg;
