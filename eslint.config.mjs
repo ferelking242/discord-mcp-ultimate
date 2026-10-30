@@ -3,7 +3,18 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
-  { ignores: ["dist/", "node_modules/", "live-test*.mjs"] },
+  {
+    ignores: [
+      "dist/",
+      "node_modules/",
+      "live-test*.mjs",
+      // Local operational helpers, gitignored and never published. Linting them
+      // would fail the build on a scratch file the repository does not contain.
+      ".ops/",
+      ".claude/",
+      ".data/",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,
