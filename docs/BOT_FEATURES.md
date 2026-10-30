@@ -25,21 +25,96 @@ than an embed holds.
 
 ## Command reference
 
-| Command                            | Permission       | What it does                          |
-| ---------------------------------- | ---------------- | ------------------------------------- |
-| `/ping`                            | everyone         | Round-trip and gateway latency        |
-| `/rank [membre]`                   | everyone         | Level, XP and rank                    |
-| `/leaderboard`                     | everyone         | Top ten by XP                         |
-| `/warn membre raison`              | Moderate Members | Warns, DMs the member, records a case |
-| `/cases membre`                    | Moderate Members | That member's case history            |
-| `/giveaway lot [duree] [gagnants]` | Manage Events    | Starts a giveaway with a Join button  |
-| `/ticket-panel`                    | Manage Channels  | Posts the open-a-ticket panel here    |
-| `/config show \| set \| channel`   | Manage Server    | Reads and writes settings             |
-| `/permissions`                     | everyone         | Which permissions the bot is missing  |
-
 Commands are registered globally by default, which Discord can take up to an hour
 to show. Set `DISCORD_DEV_GUILD` to a guild id during setup and they appear
 immediately there.
+
+### Everyone
+
+| Command                    | What it does                          |
+| -------------------------- | ------------------------------------- |
+| `/ping`                    | Round-trip and gateway latency        |
+| `/rank [membre]`           | Level, XP and rank                    |
+| `/leaderboard`             | Top ten by XP                         |
+| `/serverinfo`              | Server identity, counts, boosts       |
+| `/userinfo [membre]`       | Account age, join date, roles         |
+| `/avatar [membre]`         | Full-size avatar                      |
+| `/poll question [options]` | Native Discord poll                   |
+| `/remind duree texte`      | A reminder, delivered in this channel |
+| `/afk [raison]`            | Marks you away; clears when you speak |
+| `/afk-list`                | Who is currently away                 |
+| `/permissions`             | Which permissions the bot is missing  |
+
+### Moderation
+
+Each action writes a numbered case before it touches Discord, so the record
+exists even if the API call then fails.
+
+| Command                            | Permission       | What it does                         |
+| ---------------------------------- | ---------------- | ------------------------------------ |
+| `/warn membre raison`              | Moderate Members | Warns, DMs, records a case           |
+| `/ban membre [raison]`             | Ban Members      | Bans and records a case              |
+| `/kick membre [raison]`            | Kick Members     | Kicks and records a case             |
+| `/timeout membre [duree] [raison]` | Moderate Members | Times out, 28 days max               |
+| `/untimeout membre [raison]`       | Moderate Members | Lifts a timeout, closes the case     |
+| `/note membre raison`              | Moderate Members | Internal note, no sanction           |
+| `/cases membre`                    | Moderate Members | Case history                         |
+| `/purge nombre`                    | Manage Messages  | Deletes up to 100 recent messages    |
+| `/slowmode secondes`               | Manage Channels  | Sets the channel's slowmode          |
+| `/lock` / `/unlock`                | Manage Channels  | Denies or restores @everyone writing |
+
+Hierarchy is checked before the call, not left to Discord: a bot that reports
+"missing permissions" when the real reason is that the target outranks the
+invoker is lying about the cause. The bot also refuses to act on the server
+owner, on itself, and on anyone at or above the invoker's highest role.
+
+### Administration
+
+| Command                            | Permission      | What it does                   |
+| ---------------------------------- | --------------- | ------------------------------ |
+| `/giveaway lot [duree] [gagnants]` | Manage Events   | Starts a giveaway              |
+| `/ticket-panel`                    | Manage Channels | Posts the open-a-ticket panel  |
+| `/config …`                        | Manage Server   | Reads and writes every setting |
+
+## Configuration
+
+There is no web panel. Everything is set from Discord with `/config`, which needs
+Manage Server. `show` prints the whole configuration as a JSON file you can keep;
+`import` takes one back.
+
+| Subcommand                 | What it changes                                                 |
+| -------------------------- | --------------------------------------------------------------- |
+| `show`                     | Sends the current configuration as `config-<guild>.json`        |
+| `set fonction actif`       | Turns a feature on or off                                       |
+| `channel fonction [salon]` | Points a feature at a channel; omit the channel to clear it     |
+| `text champ valeur`        | Any message the bot sends                                       |
+| `number champ valeur`      | Thresholds and durations                                        |
+| `role champ role ajouter`  | Adds or removes a role from a list, or sets a single-role field |
+| `import fichier`           | Replaces the configuration from an exported JSON file           |
+| `reset`                    | Returns the guild to defaults, every feature off                |
+
+Every value is validated by the same Zod schema the bot reads through, so a value
+it refuses (a four-character prefix, a negative threshold) is rejected when you
+type it rather than silently at the next read. The `import` subcommand ignores the
+`guildId` in the file: importing another server's configuration must not retarget
+this one.
+
+Settings, by subcommand:
+
+- `set` — `welcome`, `autorole`, `levels`, `logging`, `tickets`, `giveaways`,
+  `starboard`, `tempVoice`, `autoresponder`, `moderation`.
+- `channel` — `welcome`, `logging`, `starboard`, `levelsAnnounce`, `ticketsPanel`,
+  `ticketsTranscript`, `ticketsCategory`, `tempVoiceCategory`, `moderationLog`.
+- `text` — `welcomeMessage`, `welcomeDm`, `goodbyeMessage`, `levelUpMessage`,
+  `ticketOpen`, `tempVoiceName`, `starboardEmoji`, `prefix`.
+- `number` — `autoroleMinAge`, `xpMin`, `xpMax`, `xpCooldown`, `starboardThreshold`,
+  `giveawayMinAge`, `giveawayDuration`, `giveawayWinners`, `ticketsMax`,
+  `tempVoiceLimit`, `tempVoiceTimeout`, `timeoutMinutes`.
+- `role` — `autorole` (list), `ticketSupport` (list), `giveawayRequired` (single).
+
+The table lives in `src/bot/configKeys.ts`. Adding a field there makes it settable
+and is checked against the schema by `test/botCommands.test.ts`, which fails if a
+key names a path the schema does not have.
 
 ## Welcome and goodbye
 

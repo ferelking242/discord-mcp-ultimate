@@ -120,7 +120,6 @@ export async function startBot(cfg: BotConfig = loadConfig()): Promise<RunningBo
       await handleCommand(interaction, {
         services,
         logger,
-        adminRoleIds: cfg.adminRoleIds,
       });
     } catch (err) {
       logger.error("command failed", {
@@ -139,6 +138,7 @@ export async function startBot(cfg: BotConfig = loadConfig()): Promise<RunningBo
   });
 
   const sweeper = startGiveawaySweeper(services, logger);
+  const reminderSweeper = startReminderSweeper(services, logger);
   const cooldownSweeper = setInterval(() => {
     void services.cooldowns.prune();
   }, 3_600_000);
@@ -171,6 +171,7 @@ export async function startBot(cfg: BotConfig = loadConfig()): Promise<RunningBo
       stopWatchingRoles();
       stopWatchingConfig();
       sweeper.stop();
+      reminderSweeper.stop();
       clearInterval(cooldownSweeper);
       // Flush before closing: the XP store batches writes, and a restart should not
       // lose the last few minutes of activity.
@@ -252,6 +253,42 @@ function startGiveawaySweeper(services: BotServices, logger: Logger): { stop(): 
       }
     })();
   }, 20_000);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Fires due reminders.
+ *
+ * The same poll-not-timer reasoning as the giveaway sweeper: a reminder stored on
+ * disk survives a restart, a `setTimeout` does not. One minute is the resolution
+ * `/remind` advertises, so nothing is meaningfully late.
+ */
+function startReminderSweeper(services: BotServices, logger: Logger): { stop(): void } {
+  const timer = setInterval(() => {
+    void (async () => {
+      for (const reminder of services.reminders.due()) {
+        try {
+          const channel = await discord.channels.fetch(reminder.channelId).catch(() => null);
+          if (channel?.isTextBased() && "send" in channel) {
+            await channel
+              .send({
+                content: `<@${reminder.userId}> rappel : ${reminder.text}`,
+                allowedMentions: { users: [reminder.userId], parse: [] },
+              })
+              .catch(() => null);
+          }
+          await services.reminders.markFired(reminder.id);
+        } catch (err) {
+          logger.error("reminder failed", {
+            id: reminder.id,
+            error: (err as Error).message,
+          });
+        }
+      }
+      await services.reminders.pruneFired().catch(() => 0);
+    })();
+  }, 60_000);
   timer.unref?.();
   return { stop: () => clearInterval(timer) };
 }

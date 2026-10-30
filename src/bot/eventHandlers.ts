@@ -232,8 +232,51 @@ export class FeatureHandlers {
     if (!member) return;
     const cfg = this.cfg(message.guildId);
 
+    await this.handleAfk(message, member);
     await this.grantXp(message, member, cfg);
     await this.maybeAutoRespond(message, member, cfg);
+  }
+
+  /**
+   * AFK bookkeeping, before anything else the message triggers.
+   *
+   * Two directions: the author speaking clears their own AFK, and a message that
+   * mentions someone who is away gets a short public notice. Both are deliberately
+   * cheap — no API call beyond the mention reply — because this runs on every
+   * message in the guild.
+   */
+  private async handleAfk(message: Message, member: GuildMember): Promise<void> {
+    const guildId = message.guildId!;
+
+    const mine = this.services.afk.for(guildId, member.id);
+    if (mine) {
+      await this.services.afk.remove((r) => r.guildId === guildId && r.userId === member.id);
+      const back = mine.mentionsMissed
+        ? `Bon retour ! Vous avez manqué ${mine.mentionsMissed} mention(s) pendant votre absence.`
+        : "Bon retour !";
+      await message.reply({ content: back, allowedMentions: { parse: [] } }).catch(() => null);
+    }
+
+    // A reply to someone away counts as a mention even without an @, which is how
+    // people actually answer a message they scrolled back to.
+    const mentioned = new Set<string>(message.mentions.users.keys());
+    if (message.reference?.messageId) {
+      const replied = await message.fetchReference().catch(() => null);
+      if (replied) mentioned.add(replied.author.id);
+    }
+
+    for (const userId of mentioned) {
+      if (userId === message.author.id) continue;
+      const record = this.services.afk.for(guildId, userId);
+      if (!record) continue;
+      const count = await this.services.afk.countMention(guildId, userId);
+      await message
+        .reply({
+          content: `<@${userId}> est absent : ${record.reason} — mention n°${count}.`,
+          allowedMentions: { parse: [] },
+        })
+        .catch(() => null);
+    }
   }
 
   private async grantXp(message: Message, member: GuildMember, cfg: GuildConfig): Promise<void> {

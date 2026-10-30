@@ -12,13 +12,13 @@ debt is visible rather than implied.
 
 ## What was studied
 
-| Project                                                                                         | Licence    | What we looked at                                                                                                           |
-| ----------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------- |
-| [discordjs/discord.js](https://github.com/discordjs/discord.js)                                 | Apache-2.0 | The library everything here is built on. No code copied.                                                                    |
-| [RTByte/rtbyte](https://github.com/RTByte/rtbyte)                                               | MIT        | A modular multipurpose bot on Sapphire. Read for the feature set and the module boundaries, not the code.                   |
-| [Sapphire Framework](https://github.com/sapphiredev/framework)                                  | MIT        | Considered as a framework and declined. See below.                                                                          |
-| [eritislami/evobot](https://github.com/eritislami/evobot)                                       | MIT        | A music bot. Read to confirm what this project deliberately does not do.                                                    |
-| [Sayrix/Ticket-Bot](https://github.com/Sayrix/Ticket-Bot)                                       | AGPL-3.0   | **Read only, for the ticket flow.** AGPL was not compatible with shipping code into this MIT project, so nothing was taken. |
+| Project                                                         | Licence    | What we looked at                                                                                                           |
+| --------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [discordjs/discord.js](https://github.com/discordjs/discord.js) | Apache-2.0 | The library everything here is built on. No code copied.                                                                    |
+| [RTByte/rtbyte](https://github.com/RTByte/rtbyte)               | MIT        | A modular multipurpose bot on Sapphire. Read for the feature set and the module boundaries, not the code.                   |
+| [Sapphire Framework](https://github.com/sapphiredev/framework)  | MIT        | Considered as a framework and declined. See below.                                                                          |
+| [eritislami/evobot](https://github.com/eritislami/evobot)       | MIT        | A music bot. Read to confirm what this project deliberately does not do.                                                    |
+| [Sayrix/Ticket-Bot](https://github.com/Sayrix/Ticket-Bot)       | AGPL-3.0   | **Read only, for the ticket flow.** AGPL was not compatible with shipping code into this MIT project, so nothing was taken. |
 
 ## What was taken
 

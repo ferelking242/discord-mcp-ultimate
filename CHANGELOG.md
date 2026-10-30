@@ -9,7 +9,36 @@ whole server: welcome and goodbye, autoroles with an account-age gate, levels on
 the MEE6 curve with role rewards and a leaderboard, logging for 17 event types,
 moderation with numbered cases, tickets with a transcript before deletion,
 giveaways with an automatic draw, a starboard, temporary voice channels, an
-autoresponder, and reaction roles. Nine slash commands.
+autoresponder, and reaction roles.
+
+### Added — 3.2.0
+
+**Moderation commands.** `ModerationStore` already modelled nine case types but
+only `warn` was wired to a command; `ban`, `kick`, `timeout`, `untimeout`,
+`note`, `purge`, `slowmode`, `lock` and `unlock` now exist. Every action records
+a numbered case _before_ the Discord call, so the trace survives a failed API
+call, and the hierarchy is checked up front so the error names the real cause
+instead of "missing permissions".
+
+**Full `/config`.** With the web panel gone, `show`, `set`, `channel`, `text`,
+`number`, `role`, `import` and `reset` are the only way to configure a guild.
+Values are validated by the same Zod schema the bot reads through, so a refused
+value fails where it is typed. `src/bot/configKeys.ts` holds the field table and
+`test/botCommands.test.ts` fails if a key names a path the schema does not have.
+
+**Utility commands.** `/serverinfo`, `/userinfo`, `/avatar`, `/poll`, `/remind`,
+`/afk` and `/afk-list`, backed by new `AfkStore` and `ReminderStore`. Reminders are
+polled from disk rather than held in a timer, so a restart does not drop them.
+
+**Removed the dead `DISCORD_ADMIN_ROLES` variable.** It was parsed, passed around,
+and never read. Removed rather than wired up: `setDefaultMemberPermissions` on each
+command already asks Discord for the right permission, and a second, narrower gate
+would deny operators Discord itself allows.
+
+**Fixed** two `/ticket-panel` and `/giveaway` messages that told the operator to
+enable the feature "in the dashboard", which no longer exists.
+
+The bot is now 25 slash commands, up from nine.
 
 **Configuration** — `/config` with `show`, `set`, `channel`, `text`, `role`,
 `number` and `import`. There is no web panel: a second service to deploy, secure

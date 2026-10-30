@@ -4,10 +4,12 @@ import type { BotConfig } from "./config.js";
 import { GuildConfigStore } from "./guildConfig.js";
 import { ReactionRoleStore } from "./reactionRoles.js";
 import {
+  AfkStore,
   CooldownStore,
   GiveawayStore,
   LevelStore,
   ModerationStore,
+  ReminderStore,
   StarboardStore,
   TempVoiceStore,
   TicketStore,
@@ -36,6 +38,8 @@ export class BotServices {
   readonly starboard: StarboardStore;
   readonly tempVoice: TempVoiceStore;
   readonly cooldowns: CooldownStore;
+  readonly afk: AfkStore;
+  readonly reminders: ReminderStore;
 
   constructor(
     readonly dataDir: string,
@@ -51,6 +55,8 @@ export class BotServices {
     this.starboard = new StarboardStore(path("starboard.json"));
     this.tempVoice = new TempVoiceStore(path("temp-voice.json"));
     this.cooldowns = new CooldownStore(path("autoresponder-cooldowns.json"));
+    this.afk = new AfkStore(path("afk.json"));
+    this.reminders = new ReminderStore(path("reminders.json"));
   }
 
   static fromConfig(cfg: BotConfig, logger: Logger): BotServices {
@@ -72,6 +78,8 @@ export class BotServices {
       this.starboard.load(),
       this.tempVoice.load(),
       this.cooldowns.load(),
+      this.afk.load(),
+      this.reminders.load(),
     ]);
     this.logger.info("stores loaded", {
       dataDir: this.dataDir,
@@ -93,6 +101,8 @@ export class BotServices {
       this.starboard.flush(),
       this.tempVoice.flush(),
       this.cooldowns.flush(),
+      this.afk.flush(),
+      this.reminders.flush(),
     ]);
   }
 
@@ -107,6 +117,8 @@ export class BotServices {
       trackedMembers: this.levels.count(),
       starboardEntries: this.starboard.count(),
       tempChannels: this.tempVoice.count(),
+      afkMembers: this.afk.count(),
+      pendingReminders: this.reminders.count((r) => !r.fired),
     };
   }
 }

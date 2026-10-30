@@ -439,3 +439,114 @@ export class CooldownStore extends CollectionStore<CooldownRecord> {
     return this.remove((c) => now - c.lastAt > this.maxAgeMs);
   }
 }
+
+// ─── AFK ───────────────────────────────────────────────────────────────────────
+
+export const afkRecordSchema = z.object({
+  guildId: snowflake,
+  userId: snowflake,
+  /** What the member typed after `/afk`. Shown when someone mentions them. */
+  reason: z.string().max(200).default("AFK"),
+  since: iso,
+  /** Messages sent while AFK, reported back when they return. */
+  mentionsMissed: z.int().min(0).default(0),
+});
+
+export type AfkRecord = z.infer<typeof afkRecordSchema>;
+
+/** Who is away, and why. Cleared the moment they speak again. */
+export class AfkStore extends CollectionStore<AfkRecord> {
+  constructor(file: string) {
+    super(file, afkRecordSchema);
+  }
+
+  for(guildId: string, userId: string): AfkRecord | undefined {
+    return this.first((r) => r.guildId === guildId && r.userId === userId);
+  }
+
+  /** Every member currently away in a guild. Used to build the AFK list. */
+  inGuild(guildId: string): AfkRecord[] {
+    return this.where((r) => r.guildId === guildId);
+  }
+
+  async set(
+    guildId: string,
+    userId: string,
+    reason: string,
+    now: number = Date.now(),
+  ): Promise<AfkRecord> {
+    const record: AfkRecord = {
+      guildId,
+      userId,
+      reason,
+      since: new Date(now).toISOString(),
+      mentionsMissed: 0,
+    };
+    const existing = this.for(guildId, userId);
+    if (existing) {
+      await this.replace((r) => r.guildId === guildId && r.userId === userId, record);
+    } else {
+      await this.add(record);
+    }
+    return record;
+  }
+
+  /** Counts a mention against a member who is away. Returns the new total. */
+  async countMention(guildId: string, userId: string): Promise<number> {
+    const existing = this.for(guildId, userId);
+    if (!existing) return 0;
+    const updated = { ...existing, mentionsMissed: existing.mentionsMissed + 1 };
+    await this.replace((r) => r.guildId === guildId && r.userId === userId, updated);
+    return updated.mentionsMissed;
+  }
+}
+
+// ─── Rappels ───────────────────────────────────────────────────────────────────
+
+export const reminderSchema = z.object({
+  id: z.string(),
+  guildId: snowflake,
+  channelId: snowflake,
+  userId: snowflake,
+  text: z.string().min(1).max(1000),
+  /** Epoch ms. The sweeper fires anything at or before now. */
+  dueAt: z.int().min(0),
+  createdAt: iso,
+  fired: z.boolean().default(false),
+});
+
+export type Reminder = z.infer<typeof reminderSchema>;
+
+/**
+ * Pending reminders.
+ *
+ * Kept on disk rather than in a `setTimeout` so a restart does not silently drop
+ * every reminder a member set. The sweeper reads `due()` on an interval.
+ */
+export class ReminderStore extends CollectionStore<Reminder> {
+  constructor(file: string) {
+    super(file, reminderSchema);
+  }
+
+  due(now: number = Date.now()): Reminder[] {
+    return this.where((r) => !r.fired && r.dueAt <= now);
+  }
+
+  pendingFor(guildId: string, userId: string): Reminder[] {
+    return this.where((r) => r.guildId === guildId && r.userId === userId && !r.fired);
+  }
+
+  async addReminder(reminder: Reminder): Promise<Reminder> {
+    return this.add(reminder);
+  }
+
+  async markFired(id: string): Promise<void> {
+    const existing = this.first((r) => r.id === id);
+    if (existing) await this.replace((r) => r.id === id, { ...existing, fired: true });
+  }
+
+  /** Drops fired reminders older than a day, so the file does not grow forever. */
+  async pruneFired(now: number = Date.now()): Promise<number> {
+    return this.remove((r) => r.fired && now - new Date(r.createdAt).getTime() > 86_400_000);
+  }
+}

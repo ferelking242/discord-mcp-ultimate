@@ -81,7 +81,6 @@ export function createHttpControlPlane(opts: HttpControlPlaneOptions): Server {
         });
       }
 
-
       const header = req.headers.authorization ?? "";
       const presented = header.startsWith("Bearer ") ? header.slice(7) : "";
       if (!presented || !safeEqual(presented, opts.token)) {

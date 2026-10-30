@@ -394,15 +394,25 @@ Un menu de rôles créé par l'IA est pris en compte par le bot **en moins de de
 secondes, sans redémarrage** : les deux processus se rejoignent sur un fichier
 JSON que le bot surveille. Il en va de même pour toute la configuration.
 
-Commandes disponibles : `/ping`, `/rank`, `/leaderboard`, `/warn`, `/cases`,
-`/giveaway`, `/ticket-panel`, `/config`, `/permissions`.
+Commandes disponibles (25) : `/ping`, `/rank`, `/leaderboard`, `/serverinfo`,
+`/userinfo`, `/avatar`, `/poll`, `/remind`, `/afk`, `/afk-list`, `/permissions`,
+puis la modération — `/warn`, `/ban`, `/kick`, `/timeout`, `/untimeout`, `/note`,
+`/cases`, `/purge`, `/slowmode`, `/lock`, `/unlock` — puis `/giveaway`,
+`/ticket-panel` et `/config`.
+
+Chaque action de modération écrit un cas numéroté **avant** d'appeler Discord : la
+trace existe même si l'appel échoue ensuite. La hiérarchie est vérifiée avant
+l'appel, donc l'erreur dit la vraie raison (la cible est au-dessus du bot) au lieu
+d'un « permissions manquantes » trompeur.
 
 #### Configuration
 
 Tout se règle depuis Discord, avec `/config` : aucun service supplémentaire, aucun
 tableau de bord, aucune base de données. `/config show` affiche la configuration
-complète, `/config set`, `/config channel`, `/config text`, `/config role`,
-`/config number` et `/config import` la modifient. Voir
+complète (en fichier JSON), et `/config set`, `/config channel`, `/config text`,
+`/config number`, `/config role`, `/config import` et `/config reset` la
+modifient. Chaque valeur passe par le même schéma Zod que le bot lit, donc une
+valeur refusée est rejetée au moment où vous la tapez. Voir
 [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md#config).
 
 Guides complets : [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) pour les
@@ -514,7 +524,7 @@ poignée de main MCP et vérifie la liste d'outils annoncée.
 | [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 177 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply           |
 | [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md)       | The 78 added tools, module by module, with the design decisions                                                         |
 | [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) | Every bot feature: welcome, autoroles, levels, logging, moderation, tickets, giveaways, starboard, voice, autoresponder |
-| [docs/CREDITS.md](docs/CREDITS.md)           | The open-source bots studied while designing the bot layer                                                             |
+| [docs/CREDITS.md](docs/CREDITS.md)           | The open-source bots studied while designing the bot layer                                                              |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Bot creation, intents, the full permission list, every client config, verification                                      |
 | [docs/SECURITY.md](docs/SECURITY.md)         | Credential handling, preview/confirm gates, permission preflight, prompt-injection boundaries                           |
 | [CHANGELOG.md](CHANGELOG.md)                 | Version history                                                                                                         |

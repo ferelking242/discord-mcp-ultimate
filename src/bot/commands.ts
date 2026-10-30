@@ -11,7 +11,18 @@ import {
 
 import { levelProgress, parseDuration, truncate } from "./features.js";
 import type { Logger } from "./handlers.js";
+import { handleModeration } from "./moderation.js";
 import type { BotServices } from "./services.js";
+import { handleUtility } from "./utility.js";
+import {
+  CHANNEL_KEYS,
+  FEATURE_KEYS,
+  NUMBER_KEYS,
+  ROLE_KEYS,
+  TEXT_KEYS,
+  nest,
+  type FeatureKey,
+} from "./configKeys.js";
 
 /**
  * Slash commands.
@@ -29,8 +40,6 @@ import type { BotServices } from "./services.js";
 export interface CommandContext {
   services: BotServices;
   logger: Logger;
-  /** Operator-facing commands require this role or Manage Server. */
-  adminRoleIds: string[];
 }
 
 const commands = [
@@ -81,17 +90,7 @@ const commands = [
             .setName("fonction")
             .setDescription("Fonctionnalité à modifier.")
             .setRequired(true)
-            .addChoices(
-              { name: "Bienvenue", value: "welcome" },
-              { name: "Rôles automatiques", value: "autorole" },
-              { name: "Niveaux", value: "levels" },
-              { name: "Journaux", value: "logging" },
-              { name: "Tickets", value: "tickets" },
-              { name: "Concours", value: "giveaways" },
-              { name: "Starboard", value: "starboard" },
-              { name: "Vocal temporaire", value: "tempVoice" },
-              { name: "Répondeur", value: "autoresponder" },
-            ),
+            .addChoices(...FEATURE_KEYS.map((f) => ({ name: f.label, value: f.value }))),
         )
         .addBooleanOption((o) =>
           o.setName("actif").setDescription("Activer ou désactiver.").setRequired(true),
@@ -106,14 +105,7 @@ const commands = [
             .setName("fonction")
             .setDescription("Fonctionnalité.")
             .setRequired(true)
-            .addChoices(
-              { name: "Bienvenue", value: "welcome" },
-              { name: "Journaux", value: "logging" },
-              { name: "Starboard", value: "starboard" },
-              { name: "Annonces de niveau", value: "levelsAnnounce" },
-              { name: "Panneau de tickets", value: "ticketsPanel" },
-              { name: "Transcriptions", value: "ticketsTranscript" },
-            ),
+            .addChoices(...CHANNEL_KEYS.map((k) => ({ name: k.label, value: k.value }))),
         )
         .addChannelOption((o) =>
           o
@@ -122,10 +114,174 @@ const commands = [
             .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
         ),
     )
+    .addSubcommand((s) =>
+      s
+        .setName("text")
+        .setDescription("Modifie un texte envoyé par le bot.")
+        .addStringOption((o) =>
+          o
+            .setName("champ")
+            .setDescription("Texte à modifier.")
+            .setRequired(true)
+            .addChoices(...TEXT_KEYS.map((k) => ({ name: k.label, value: k.value }))),
+        )
+        .addStringOption((o) =>
+          o.setName("valeur").setDescription("Nouveau texte.").setRequired(true).setMaxLength(2000),
+        ),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("number")
+        .setDescription("Modifie un seuil ou une durée.")
+        .addStringOption((o) =>
+          o
+            .setName("champ")
+            .setDescription("Valeur à modifier.")
+            .setRequired(true)
+            .addChoices(...NUMBER_KEYS.map((k) => ({ name: k.label, value: k.value }))),
+        )
+        .addIntegerOption((o) =>
+          o.setName("valeur").setDescription("Nouvelle valeur.").setRequired(true).setMinValue(0),
+        ),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("role")
+        .setDescription("Ajoute ou retire un rôle de la configuration.")
+        .addStringOption((o) =>
+          o
+            .setName("champ")
+            .setDescription("Liste de rôles à modifier.")
+            .setRequired(true)
+            .addChoices(...ROLE_KEYS.map((k) => ({ name: k.label, value: k.value }))),
+        )
+        .addRoleOption((o) => o.setName("role").setDescription("Rôle.").setRequired(true))
+        .addBooleanOption((o) =>
+          o
+            .setName("ajouter")
+            .setDescription("Ajouter (true) ou retirer (false).")
+            .setRequired(true),
+        ),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("import")
+        .setDescription("Remplace la configuration par un fichier JSON exporté.")
+        .addAttachmentOption((o) =>
+          o.setName("fichier").setDescription("Fichier JSON de configuration.").setRequired(true),
+        ),
+    )
+    .addSubcommand((s) =>
+      s.setName("reset").setDescription("Remet toute la configuration du serveur à zéro."),
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
     .setName("permissions")
     .setDescription("Diagnostique les permissions du bot sur ce serveur."),
+
+  // ── Moderation ─────────────────────────────────────────────────────────────
+  new SlashCommandBuilder()
+    .setName("ban")
+    .setDescription("Bannit un membre et enregistre un cas.")
+    .addUserOption((o) => o.setName("membre").setDescription("Membre à bannir.").setRequired(true))
+    .addStringOption((o) => o.setName("raison").setDescription("Raison."))
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+  new SlashCommandBuilder()
+    .setName("kick")
+    .setDescription("Expulse un membre et enregistre un cas.")
+    .addUserOption((o) =>
+      o.setName("membre").setDescription("Membre à expulser.").setRequired(true),
+    )
+    .addStringOption((o) => o.setName("raison").setDescription("Raison."))
+    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
+  new SlashCommandBuilder()
+    .setName("timeout")
+    .setDescription("Exclut temporairement un membre.")
+    .addUserOption((o) => o.setName("membre").setDescription("Membre à exclure.").setRequired(true))
+    .addStringOption((o) => o.setName("duree").setDescription("Durée, par exemple 10m, 2h, 7d."))
+    .addStringOption((o) => o.setName("raison").setDescription("Raison."))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+  new SlashCommandBuilder()
+    .setName("untimeout")
+    .setDescription("Lève l'exclusion temporaire d'un membre.")
+    .addUserOption((o) => o.setName("membre").setDescription("Membre à libérer.").setRequired(true))
+    .addStringOption((o) => o.setName("raison").setDescription("Raison."))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+  new SlashCommandBuilder()
+    .setName("note")
+    .setDescription("Ajoute une note interne sur un membre, sans sanction.")
+    .addUserOption((o) => o.setName("membre").setDescription("Membre concerné.").setRequired(true))
+    .addStringOption((o) => o.setName("raison").setDescription("Note.").setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+  new SlashCommandBuilder()
+    .setName("purge")
+    .setDescription("Supprime les derniers messages de ce salon.")
+    .addIntegerOption((o) =>
+      o
+        .setName("nombre")
+        .setDescription("Nombre de messages (1 à 100).")
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(100),
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+  new SlashCommandBuilder()
+    .setName("slowmode")
+    .setDescription("Règle le mode lent de ce salon.")
+    .addIntegerOption((o) =>
+      o
+        .setName("secondes")
+        .setDescription("Secondes entre deux messages (0 pour désactiver).")
+        .setRequired(true)
+        .setMinValue(0)
+        .setMaxValue(21600),
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+  new SlashCommandBuilder()
+    .setName("lock")
+    .setDescription("Empêche @everyone d'écrire dans ce salon.")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+  new SlashCommandBuilder()
+    .setName("unlock")
+    .setDescription("Rend l'écriture à @everyone dans ce salon.")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+  // ── Utilitaires ────────────────────────────────────────────────────────────
+  new SlashCommandBuilder()
+    .setName("serverinfo")
+    .setDescription("Affiche les informations du serveur."),
+  new SlashCommandBuilder()
+    .setName("userinfo")
+    .setDescription("Affiche les informations d'un membre.")
+    .addUserOption((o) => o.setName("membre").setDescription("Membre à consulter.")),
+  new SlashCommandBuilder()
+    .setName("avatar")
+    .setDescription("Affiche l'avatar d'un membre.")
+    .addUserOption((o) => o.setName("membre").setDescription("Membre à consulter.")),
+  new SlashCommandBuilder()
+    .setName("poll")
+    .setDescription("Lance un sondage natif.")
+    .addStringOption((o) => o.setName("question").setDescription("Question.").setRequired(true))
+    .addStringOption((o) =>
+      o.setName("options").setDescription("Choix séparés par | (par défaut : Oui | Non)."),
+    ),
+  new SlashCommandBuilder()
+    .setName("remind")
+    .setDescription("Vous rappelle quelque chose plus tard.")
+    .addStringOption((o) =>
+      o
+        .setName("duree")
+        .setDescription("Dans combien de temps, par exemple 10m, 2h, 1d.")
+        .setRequired(true),
+    )
+    .addStringOption((o) =>
+      o.setName("texte").setDescription("Quoi vous rappeler.").setRequired(true),
+    ),
+  new SlashCommandBuilder()
+    .setName("afk")
+    .setDescription("Vous marque absent, avec une raison facultative.")
+    .addStringOption((o) => o.setName("raison").setDescription("Raison.")),
+  new SlashCommandBuilder().setName("afk-list").setDescription("Liste les membres absents."),
 ].map((c) => c.toJSON());
 
 /** Registers the command list with Discord, replacing whatever was there. */
@@ -174,6 +330,15 @@ export async function handleCommand(
     return true;
   }
   const cfg = ctx.services.guildConfig.get(guildId);
+
+  // Commands split across modules so this file stays a dispatcher. Each returns
+  // false for a name it does not own.
+  if (await handleModeration(interaction, { services: ctx.services, logger: ctx.logger })) {
+    return true;
+  }
+  if (await handleUtility(interaction, { services: ctx.services, logger: ctx.logger })) {
+    return true;
+  }
 
   switch (interaction.commandName) {
     case "ping": {
@@ -295,7 +460,8 @@ export async function handleCommand(
     case "giveaway": {
       if (!cfg.giveaways.enabled) {
         await interaction.reply({
-          content: "Les concours ne sont pas activés. Activez-les dans le tableau de bord.",
+          content:
+            "Les concours ne sont pas activés. Faites `/config set fonction:giveaways actif:true`.",
           ephemeral: true,
         });
         return true;
@@ -357,7 +523,8 @@ export async function handleCommand(
     case "ticket-panel": {
       if (!cfg.tickets.enabled) {
         await interaction.reply({
-          content: "Les tickets ne sont pas activés. Activez-les dans le tableau de bord.",
+          content:
+            "Les tickets ne sont pas activés. Faites `/config set fonction:tickets actif:true`.",
           ephemeral: true,
         });
         return true;
@@ -393,6 +560,7 @@ export async function handleCommand(
 
     case "config": {
       const sub = interaction.options.getSubcommand(true);
+
       if (sub === "show") {
         const shown = JSON.stringify(ctx.services.guildConfig.get(guildId), null, 2);
         // The config is longer than an embed field allows, so it goes as a file.
@@ -402,44 +570,159 @@ export async function handleCommand(
         });
         return true;
       }
+
       if (sub === "set") {
-        const feature = interaction.options.getString("fonction", true) as
-          | "welcome"
-          | "autorole"
-          | "levels"
-          | "logging"
-          | "tickets"
-          | "giveaways"
-          | "starboard"
-          | "tempVoice"
-          | "autoresponder";
+        const feature = interaction.options.getString("fonction", true) as FeatureKey;
         const active = interaction.options.getBoolean("actif", true);
         await ctx.services.guildConfig.patch(guildId, { [feature]: { enabled: active } } as never);
+        const label = FEATURE_KEYS.find((f) => f.value === feature)?.label ?? feature;
         await interaction.reply({
-          content: `${feature} : ${active ? "activé" : "désactivé"}.`,
+          content: `${label} : ${active ? "activé" : "désactivé"}.`,
           ephemeral: true,
         });
         return true;
       }
+
       if (sub === "channel") {
-        const feature = interaction.options.getString("fonction", true);
+        const key = interaction.options.getString("fonction", true);
         const channel = interaction.options.getChannel("salon");
+        const entry = CHANNEL_KEYS.find((k) => k.value === key);
+        if (!entry) {
+          await interaction.reply({ content: "Champ inconnu.", ephemeral: true });
+          return true;
+        }
         const channelId = channel?.id ?? null;
-        const patches: Record<string, unknown> = {
-          welcome: { welcome: { channelId } },
-          logging: { logging: { channelId } },
-          starboard: { starboard: { channelId } },
-          levelsAnnounce: { levels: { announceChannelId: channelId } },
-          ticketsPanel: { tickets: { panelChannelId: channelId } },
-          ticketsTranscript: { tickets: { transcriptChannelId: channelId } },
-        };
-        await ctx.services.guildConfig.patch(guildId, patches[feature] as never);
+        await ctx.services.guildConfig.patch(guildId, nest(entry.path, channelId) as never);
         await interaction.reply({
-          content: channelId ? `Salon défini : <#${channelId}>.` : "Salon retiré.",
+          content: channelId
+            ? `${entry.label} : <#${channelId}>.`
+            : `${entry.label} : salon retiré.`,
           ephemeral: true,
         });
         return true;
       }
+
+      if (sub === "text") {
+        const key = interaction.options.getString("champ", true);
+        const value = interaction.options.getString("valeur", true);
+        const entry = TEXT_KEYS.find((k) => k.value === key);
+        if (!entry) {
+          await interaction.reply({ content: "Champ inconnu.", ephemeral: true });
+          return true;
+        }
+        // The schema re-parses the merged config, so a value it refuses (a
+        // too-short prefix, an empty message) fails here rather than at the next read.
+        try {
+          await ctx.services.guildConfig.patch(guildId, nest(entry.path, value) as never);
+        } catch (err) {
+          await interaction.reply({
+            content: `Valeur refusée : ${(err as Error).message}`,
+            ephemeral: true,
+          });
+          return true;
+        }
+        await interaction.reply({ content: `${entry.label} mis à jour.`, ephemeral: true });
+        return true;
+      }
+
+      if (sub === "number") {
+        const key = interaction.options.getString("champ", true);
+        const value = interaction.options.getInteger("valeur", true);
+        const entry = NUMBER_KEYS.find((k) => k.value === key);
+        if (!entry) {
+          await interaction.reply({ content: "Champ inconnu.", ephemeral: true });
+          return true;
+        }
+        try {
+          await ctx.services.guildConfig.patch(guildId, nest(entry.path, value) as never);
+        } catch (err) {
+          await interaction.reply({
+            content: `Valeur refusée : ${(err as Error).message}`,
+            ephemeral: true,
+          });
+          return true;
+        }
+        await interaction.reply({ content: `${entry.label} : ${value}.`, ephemeral: true });
+        return true;
+      }
+
+      if (sub === "role") {
+        const key = interaction.options.getString("champ", true);
+        const role = interaction.options.getRole("role", true);
+        const add = interaction.options.getBoolean("ajouter", true);
+        const entry = ROLE_KEYS.find((k) => k.value === key);
+        if (!entry) {
+          await interaction.reply({ content: "Champ inconnu.", ephemeral: true });
+          return true;
+        }
+        const cfgNow = ctx.services.guildConfig.get(guildId);
+        // A single-value key (`requiredRoleId`) is set or cleared; a list key
+        // (`roleIds`, `supportRoleIds`) is appended to or filtered.
+        const isList = entry.path.endsWith("Ids");
+        if (isList) {
+          const [section, field] = entry.path.split(".");
+          const current = (cfgNow as unknown as Record<string, Record<string, string[]>>)[section][
+            field
+          ] as string[];
+          const next = add
+            ? Array.from(new Set([...current, role.id]))
+            : current.filter((id) => id !== role.id);
+          await ctx.services.guildConfig.patch(guildId, { [section]: { [field]: next } } as never);
+        } else {
+          await ctx.services.guildConfig.patch(
+            guildId,
+            nest(entry.path, add ? role.id : null) as never,
+          );
+        }
+        await interaction.reply({
+          content: `${entry.label} : ${add ? "ajouté" : "retiré"} (${role.name}).`,
+          ephemeral: true,
+        });
+        return true;
+      }
+
+      if (sub === "import") {
+        const attachment = interaction.options.getAttachment("fichier", true);
+        if (attachment.size > 512_000) {
+          await interaction.reply({ content: "Fichier trop volumineux.", ephemeral: true });
+          return true;
+        }
+        await interaction.deferReply({ ephemeral: true });
+        let parsed: unknown;
+        try {
+          const res = await fetch(attachment.url);
+          parsed = JSON.parse(await res.text());
+        } catch {
+          await interaction.editReply({ content: "Fichier illisible : ce n'est pas du JSON." });
+          return true;
+        }
+        // The guild id in the file is ignored: importing another server's config
+        // must not retarget this one.
+        const incoming = parsed as Record<string, unknown>;
+        try {
+          await ctx.services.guildConfig.set(guildId, {
+            ...(incoming as object),
+            guildId,
+          } as never);
+        } catch (err) {
+          await interaction.editReply({
+            content: `Configuration refusée : ${(err as Error).message}`,
+          });
+          return true;
+        }
+        await interaction.editReply({ content: "Configuration importée." });
+        return true;
+      }
+
+      if (sub === "reset") {
+        await ctx.services.guildConfig.reset(guildId);
+        await interaction.reply({
+          content: "Configuration remise à zéro. Toutes les fonctions sont désactivées.",
+          ephemeral: true,
+        });
+        return true;
+      }
+
       return true;
     }
 

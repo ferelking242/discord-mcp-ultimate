@@ -80,17 +80,6 @@ const schema = z.object({
    * means global registration, which Discord can take an hour to propagate.
    */
   devGuildId: z.string().optional(),
-  /** Roles allowed to run operator commands, in addition to Manage Server. */
-  adminRoleIds: z
-    .string()
-    .optional()
-    .transform((v) =>
-      (v ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
-
 });
 
 export type BotConfig = z.infer<typeof schema> & { token: string };
@@ -114,7 +103,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BotConfig {
     httpPort: env.MCP_HTTP_PORT,
     httpToken: env.MCP_HTTP_TOKEN,
     devGuildId: env.DISCORD_DEV_GUILD,
-    adminRoleIds: env.DISCORD_ADMIN_ROLES,
   });
   if (!parsed.success) {
     const detail = parsed.error.issues
