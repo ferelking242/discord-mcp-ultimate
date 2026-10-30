@@ -86,10 +86,10 @@ guarantee, change the document in the same commit.
 - Do not leave a credential in `.git/config`. Set the remote with the token,
   push, then reset the URL to the plain https form.
 
-## Bot and dashboard (this fork's own layers)
+## Bot layer (this fork's own)
 
-`src/bot/` is the long-running bot, `src/dashboard/` the web panel. They are not
-MCP tools; do not add them to `src/tools/`.
+`src/bot/` is the long-running bot. It is not an MCP tool; do not add it to
+`src/tools/`.
 
 - **One gateway connection.** The bot, the reaction-role handlers and the MCP
   HTTP transport share the `discord.js` client in `src/client.ts`. Opening a
@@ -99,20 +99,18 @@ MCP tools; do not add them to `src/tools/`.
   `.tmp` and renames, so a crash mid-write leaves the previous version intact,
   and it detects external changes by **content digest, not mtime** — an mtime
   misses two writes in the same millisecond. Both processes poll, which is what
-  lets a dashboard edit reach the bot and the MCP tools without a restart.
+  lets a `/config` edit reach the MCP tools without a restart.
 - **`BOT_DATA_DIR`** holds every state file. Tests must point it at a temp
   directory; never let a test write into `.data/`.
-- **The dashboard shares the MCP port.** `createDashboardHandler` returns `false`
-  for a path it does not own so the bearer-authenticated `/mcp` and `/status`
-  still route. Adding a catch-all there breaks remote MCP. There is a test for
-  this in `test/dashboard.test.ts`.
+- **The HTTP plane serves `/health`, `/status` and `/mcp` only.** `/health` is
+  unauthenticated; the other two require the bearer token. Do not add a catch-all
+  route that answers before the bearer check, or remote MCP stops authenticating.
 - **Config schema is Zod v4.** A nested default is `.default(() => schema.parse({}))`,
-  not a plain object. `loadConfig` refuses to start on an incoherent combination
-  (dashboard without a password, HTTP without a token) — keep those checks.
-- **Live verification matters.** Two real bugs (the `/mcp` 404 and the mtime
+  not a plain object. `loadConfig` refuses to start when HTTP is on without a
+  token — keep that check.
+- **Live verification matters.** Two real bugs (a `/mcp` 404 and the mtime
   comparison) passed every unit test and only showed up when the bot ran against
-  Discord. Run `node dist/bot/index.js` with `DASHBOARD_ENABLED=true` before
-  claiming a dashboard change works.
+  Discord. Run `node dist/bot/index.js` before claiming a bot change works.
 
 ## Tool count
 
@@ -123,6 +121,6 @@ are updated — update them rather than relaxing the assertion.
 
 ## Test scope
 
-`npm test` runs 284 tests against mocks and in-memory MCP transports. No Discord
+`npm test` runs the suite against mocks and in-memory MCP transports. No Discord
 token, no live server. Tests that need a real gateway must not be added to the
 default `npm test` run.

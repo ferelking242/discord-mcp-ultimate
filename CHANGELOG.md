@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.1.0 — Bot and dashboard
+## 3.1.0 — Bot
 
 ### Added
 
@@ -11,11 +11,10 @@ moderation with numbered cases, tickets with a transcript before deletion,
 giveaways with an automatic draw, a starboard, temporary voice channels, an
 autoresponder, and reaction roles. Nine slash commands.
 
-**Web dashboard** (`src/dashboard/`) — served by the bot process on the MCP port,
-so there is no second service and no database. scrypt password, signed HttpOnly
-session cookie, CSRF token on every mutation, `SameSite=Strict`, a CSP with no
-inline script, and per-address login throttling. Refuses to start without a
-password.
+**Configuration** — `/config` with `show`, `set`, `channel`, `text`, `role`,
+`number` and `import`. There is no web panel: a second service to deploy, secure
+and keep in sync is not worth it for a bot an operator already talks to in
+Discord.
 
 **Storage** (`src/bot/store.ts`) — every store is a JSON document written to a
 temp file and renamed over the target, so a crash mid-write leaves the previous
@@ -24,8 +23,8 @@ misses two writes in the same millisecond.
 
 ### Fixed
 
-- The dashboard answered 404 for `/mcp`, which made the bearer-authenticated MCP
-  transport unreachable when both shared a port.
+- A catch-all route answered 404 for `/mcp`, which made the
+  bearer-authenticated MCP transport unreachable on the HTTP port.
 - `expandTemplate` threw on a member-like object that carried only an id.
 
 ### Tests

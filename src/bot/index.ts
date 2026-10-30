@@ -12,7 +12,6 @@ import { join } from "node:path";
 
 import { discord, ensureConnected } from "../client.js";
 import { createServer } from "../server.js";
-import { DiscordBackend } from "./backend.js";
 import { loadConfig, type BotConfig } from "./config.js";
 import { FeatureHandlers } from "./eventHandlers.js";
 import { ReactionRoleHandlers, type Logger } from "./handlers.js";
@@ -20,13 +19,6 @@ import { createHttpControlPlane } from "./http.js";
 import { SlidingWindowLimiter } from "./rateLimit.js";
 import { BotServices } from "./services.js";
 import { handleCommand, registerCommands } from "./commands.js";
-import { Authenticator } from "../dashboard/auth.js";
-import { createDashboardHandler } from "../dashboard/api.js";
-import {
-  renderDashboardCss,
-  renderDashboardPage,
-  renderDashboardScript,
-} from "../dashboard/page.js";
 
 /**
  * Long-running bot entry point.
@@ -63,7 +55,7 @@ export async function startBot(cfg: BotConfig = loadConfig()): Promise<RunningBo
   const stopWatchingRoles = services.reactionRoles.watch((count) =>
     logger.info("reaction-role file reloaded", { mappings: count }),
   );
-  // The dashboard writes guild settings; the MCP side reads them.
+  // Slash commands and the MCP tools both write here; each side watches for the other.
   const stopWatchingConfig = services.guildConfig.watch((guilds) =>
     logger.info("guild config reloaded", { guilds: guilds.length }),
   );
@@ -146,7 +138,6 @@ export async function startBot(cfg: BotConfig = loadConfig()): Promise<RunningBo
     }
   });
 
-  const backend = new DiscordBackend(services, logger);
   const sweeper = startGiveawaySweeper(services, logger);
   const cooldownSweeper = setInterval(() => {
     void services.cooldowns.prune();
@@ -155,30 +146,12 @@ export async function startBot(cfg: BotConfig = loadConfig()): Promise<RunningBo
 
   let http: ReturnType<typeof createHttpControlPlane> | undefined;
   if (cfg.httpEnabled) {
-    const auth = new Authenticator({
-      password: cfg.dashboardPassword,
-      passwordHash: cfg.dashboardPasswordHash,
-      sessionSecret: cfg.dashboardSessionSecret,
-      secureCookies: cfg.dashboardSecureCookies,
-    });
-    const dashboard = createDashboardHandler({
-      backend,
-      auth,
-      logger,
-      operatorId: cfg.dashboardOperatorId,
-      renderPage: renderDashboardPage,
-      renderCss: renderDashboardCss,
-      renderScript: renderDashboardScript,
-      mcpEnabled: true,
-    });
-
     http = createHttpControlPlane({
       host: cfg.httpHost,
       port: cfg.httpPort,
       token: cfg.httpToken!,
       logger,
       createMcpServer: () => createServer(version),
-      dashboard,
       extraHealth: () => ({ stores: services.stats() }),
       getStatus: () => ({
         discord: {
@@ -190,9 +163,6 @@ export async function startBot(cfg: BotConfig = loadConfig()): Promise<RunningBo
         stores: services.stats(),
       }),
     });
-    if (cfg.dashboardEnabled) {
-      logger.info("dashboard enabled", { url: `http://${cfg.httpHost}:${cfg.httpPort}/` });
-    }
   }
 
   return {

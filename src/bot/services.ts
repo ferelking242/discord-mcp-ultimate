@@ -17,7 +17,7 @@ import type { Logger } from "./handlers.js";
 /**
  * Every store the bot needs, opened and loaded once.
  *
- * Constructing them in one place is what lets the dashboard, the slash commands
+ * Constructing them in one place is what lets the slash commands
  * and the event handlers share the same in-memory state. Two `GuildConfigStore`
  * instances over the same file would each hold their own copy and overwrite each
  * other's changes; one instance per process, and the file watcher handles the
@@ -96,7 +96,7 @@ export class BotServices {
     ]);
   }
 
-  /** A one-line summary for `/health` and the dashboard's status panel. */
+  /** A one-line summary for `/health` and `/status`. */
   stats(): Record<string, unknown> {
     return {
       configuredGuilds: this.guildConfig.guildIds().length,

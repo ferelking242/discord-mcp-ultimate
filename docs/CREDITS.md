@@ -5,7 +5,7 @@ version 2.2.0, MIT licensed. The original copyright and licence are preserved
 verbatim in [LICENSE](../LICENSE), and the 99 tools of that release are kept as
 they were.
 
-The bot and dashboard layers were written for this fork. When designing them we
+The bot layer was written for this fork. When designing it we
 studied other open-source Discord bots to see how the field solves the same
 problems. What follows is what was studied and what was taken from each, so the
 debt is visible rather than implied.
@@ -17,8 +17,6 @@ debt is visible rather than implied.
 | [discordjs/discord.js](https://github.com/discordjs/discord.js)                                 | Apache-2.0 | The library everything here is built on. No code copied.                                                                    |
 | [RTByte/rtbyte](https://github.com/RTByte/rtbyte)                                               | MIT        | A modular multipurpose bot on Sapphire. Read for the feature set and the module boundaries, not the code.                   |
 | [Sapphire Framework](https://github.com/sapphiredev/framework)                                  | MIT        | Considered as a framework and declined. See below.                                                                          |
-| [Discord-Dashboard/Core](https://github.com/Discord-Dashboard/Core)                             | MIT        | Considered as a dashboard library and declined. See below.                                                                  |
-| [fuma-nama/discord-bot-dashboard-next](https://github.com/fuma-nama/discord-bot-dashboard-next) | MIT        | A dashboard template. Read for the shape of a config API.                                                                   |
 | [eritislami/evobot](https://github.com/eritislami/evobot)                                       | MIT        | A music bot. Read to confirm what this project deliberately does not do.                                                    |
 | [Sayrix/Ticket-Bot](https://github.com/Sayrix/Ticket-Bot)                                       | AGPL-3.0   | **Read only, for the ticket flow.** AGPL was not compatible with shipping code into this MIT project, so nothing was taken. |
 
@@ -35,9 +33,9 @@ knowing which features matter and how the interfaces should be shaped:
 - **Framework decision.** RTByte runs on Sapphire and PostgreSQL. We declined both.
   A self-hosted bot should not need a database and a service to start, so state is
   JSON files written atomically. The trade-off is stated in
-  [DASHBOARD.md](DASHBOARD.md#storage): this does not scale to a bot in tens of
+  a JSON document: this does not scale to a bot in tens of
   thousands of guilds, and it is not meant to.
-- **Dashboard decision.** Both dashboard projects we read assume an OAuth2 login
+- **Web panel decision.** The dashboard projects we read assume an OAuth2 login
   against Discord. We declined that too: it adds a client secret, a redirect URL
   and a token exchange to secure, for a panel with exactly one user. A password and
   a signed cookie is smaller and has less to get wrong.
@@ -47,7 +45,7 @@ knowing which features matter and how the interfaces should be shaped:
 
 ## Everything else
 
-The MCP tool layer, the bot subsystem, the dashboard, the storage layer and the
+The MCP tool layer, the bot subsystem, the storage layer and the
 tests in this repository were written for this fork. Where an implementation
 follows a known convention, it says so in a comment: the XP curve is MEE6's, and
 `docs/BOT_FEATURES.md` says so rather than presenting it as ours.

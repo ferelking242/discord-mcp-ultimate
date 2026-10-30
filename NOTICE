@@ -19,8 +19,7 @@ Added in this fork:
   - a long-running bot process (welcome, autoroles, levels, logging,
     moderation, tickets, giveaways, starboard, temporary voice channels,
     autoresponder, slash commands)
-  - a web dashboard
   - a test suite covering all of the above
 
 See docs/CREDITS.md for the open-source projects studied while designing the
-bot and dashboard layers. No code was copied from any of them.
+bot layer. No code was copied from any of them.

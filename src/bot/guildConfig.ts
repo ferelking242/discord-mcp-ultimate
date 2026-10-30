@@ -6,13 +6,13 @@ import { JsonDocument } from "./store.js";
  * Per-guild settings for every bot feature.
  *
  * One document holds them all rather than one file per feature, because the
- * dashboard edits several at once and an operator wants a single thing to back up.
+ * several sections are edited at once and an operator wants a single thing to back up.
  * Every section carries `enabled`, so a feature is off until someone turns it on:
  * a bot that starts welcoming, logging and levelling the moment it joins a server
  * is a bot people kick.
  *
  * The schema is the contract between three consumers that never see each other:
- * the event handlers, the slash commands, and the dashboard's JSON API. Parsing on
+ * the event handlers and the slash commands. Parsing on
  * read is what keeps a hand-edited file from crashing a handler at 3am.
  */
 
@@ -238,7 +238,7 @@ export class GuildConfigStore {
   /**
    * Merges a partial config into a guild's settings and persists.
    *
-   * A deep merge rather than a replace: the dashboard sends one section at a time,
+   * A deep merge rather than a replace: a caller sends one section at a time,
    * and a replace would silently wipe the sections it did not mention. The merged
    * result is re-parsed, so an invalid patch fails here rather than at the next read.
    */
@@ -252,7 +252,7 @@ export class GuildConfigStore {
     return merged;
   }
 
-  /** Replaces a guild's settings wholesale. Used by the dashboard's import. */
+  /** Replaces a guild's settings wholesale. Used by the config import command. */
   async set(guildId: string, config: GuildConfig): Promise<GuildConfig> {
     const parsed = guildConfigSchema.parse(config);
     await this.doc.update((doc) => ({
@@ -291,7 +291,7 @@ export type DeepPartial<T> = {
 /**
  * Merges `patch` into `base`, recursing into plain objects.
  *
- * Arrays are replaced, never merged element-wise: a dashboard that sends a shorter
+ * Arrays are replaced, never merged element-wise: a caller that sends a shorter
  * `roleIds` means "these roles", and a union would make removing one impossible.
  */
 export function deepMerge<T>(base: T, patch: DeepPartial<T> | undefined): T {

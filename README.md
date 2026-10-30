@@ -16,9 +16,9 @@ The same repository ships a **complete bot** (`npm run bot`) that keeps one gate
 reaction roles, welcome messages, autoroles, levels, logging, moderation with
 numbered cases, tickets, giveaways, a starboard, temporary voice channels, an
 autoresponder, slash commands, and the MCP tool surface served over authenticated
-HTTP so a remote agent can drive it. It also serves a **web dashboard**.
-See [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md), [docs/DASHBOARD.md](docs/DASHBOARD.md)
-and [docs/BOT.md](docs/BOT.md).
+HTTP so a remote agent can drive it. Everything is configured from Discord with
+`/config`, so no separate service is needed.
+See [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) and [docs/BOT.md](docs/BOT.md).
 
 </div>
 
@@ -90,21 +90,15 @@ The bot keeps one Discord connection and runs every server feature from it:
 welcome messages, autoroles, levels, logging, moderation, tickets, giveaways,
 starboard, temporary voice channels, an autoresponder and slash commands.
 
-Add the HTTP plane to expose MCP remotely and serve the dashboard:
+Add the HTTP plane to expose MCP remotely:
 
 ```bash
 MCP_HTTP_ENABLED=true MCP_HTTP_TOKEN=$(openssl rand -hex 32) npm run bot:start
 ```
 
-That exposes `/health` (no auth), `/status` and `/mcp` (bearer token). Add
-`DASHBOARD_ENABLED=true` and a password for the web panel:
+That exposes `/health` (no auth), `/status` and `/mcp` (bearer token).
 
-```bash
-node scripts/hash-password.js       # prints DASHBOARD_PASSWORD_HASH
-```
-
-Guides: [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) for the features,
-[docs/DASHBOARD.md](docs/DASHBOARD.md) for the panel, and
+Guides: [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) for the features and
 [docs/BOT.md](docs/BOT.md) for deployment — systemd, Docker, reverse proxy,
 troubleshooting.
 
@@ -403,35 +397,17 @@ JSON que le bot surveille. Il en va de même pour toute la configuration.
 Commandes disponibles : `/ping`, `/rank`, `/leaderboard`, `/warn`, `/cases`,
 `/giveaway`, `/ticket-panel`, `/config`, `/permissions`.
 
-#### Le tableau de bord
+#### Configuration
 
-Une interface web pour tout régler sans passer par l'IA : bienvenue, rôles
-automatiques, niveaux, journaux, modération, tickets, concours, starboard, vocal
-temporaire et répondeur. Elle tourne **dans le processus du bot**, sur le même
-port que le MCP — pas de second service, pas de base de données, pas de build.
-
-```bash
-node scripts/hash-password.js       # affiche DASHBOARD_PASSWORD_HASH
-```
-
-```bash
-DASHBOARD_ENABLED=true
-DASHBOARD_PASSWORD_HASH=scrypt$...
-DASHBOARD_OPERATOR_ID=ton_id_discord
-```
-
-Le processus **refuse de démarrer** si le tableau de bord est activé sans mot de
-passe : une interface non protégée serait de l'administration à distance du bot.
-
-Sécurité : mot de passe scrypt, cookie de session signé et `HttpOnly`, jeton CSRF
-sur chaque modification, `SameSite=Strict`, CSP sans script en ligne, limitation
-des tentatives de connexion par adresse. Détails, API JSON et dépannage :
-[docs/DASHBOARD.md](docs/DASHBOARD.md).
+Tout se règle depuis Discord, avec `/config` : aucun service supplémentaire, aucun
+tableau de bord, aucune base de données. `/config show` affiche la configuration
+complète, `/config set`, `/config channel`, `/config text`, `/config role`,
+`/config number` et `/config import` la modifient. Voir
+[docs/BOT_FEATURES.md](docs/BOT_FEATURES.md#config).
 
 Guides complets : [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) pour les
-fonctionnalités, [docs/DASHBOARD.md](docs/DASHBOARD.md) pour le tableau de bord,
-et [docs/BOT.md](docs/BOT.md) pour le déploiement — systemd, Docker, reverse
-proxy, dépannage.
+fonctionnalités et [docs/BOT.md](docs/BOT.md) pour le déploiement — systemd,
+Docker, reverse proxy, dépannage.
 
 ### Points importants, énoncés franchement
 
@@ -538,8 +514,7 @@ poignée de main MCP et vérifie la liste d'outils annoncée.
 | [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 177 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply           |
 | [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md)       | The 78 added tools, module by module, with the design decisions                                                         |
 | [docs/BOT_FEATURES.md](docs/BOT_FEATURES.md) | Every bot feature: welcome, autoroles, levels, logging, moderation, tickets, giveaways, starboard, voice, autoresponder |
-| [docs/DASHBOARD.md](docs/DASHBOARD.md)       | The web panel: setup, security model, JSON API, storage, troubleshooting                                                |
-| [docs/CREDITS.md](docs/CREDITS.md)           | The open-source bots studied while designing the bot and dashboard layers                                               |
+| [docs/CREDITS.md](docs/CREDITS.md)           | The open-source bots studied while designing the bot layer                                                             |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Bot creation, intents, the full permission list, every client config, verification                                      |
 | [docs/SECURITY.md](docs/SECURITY.md)         | Credential handling, preview/confirm gates, permission preflight, prompt-injection boundaries                           |
 | [CHANGELOG.md](CHANGELOG.md)                 | Version history                                                                                                         |
@@ -562,15 +537,15 @@ description of the tool it affects.
 - **Deleted entities are gone.** Discord has no undo.
 - **Scheduled tasks live in the server process** and do not survive a restart.
   Use an external scheduler for durable timing.
-- **A bot cannot create a new server**, so the dashboard and the bot configure
+- **A bot cannot create a new server**, so the bot configures
   servers you have already created and invited the bot to.
 - **Giveaway draws are polled every 20 seconds**, not scheduled, so a draw can
   happen up to 20 seconds after the deadline. That is deliberate: a timer would
   not survive a restart, and a giveaway that ends while the bot is down would
   never be drawn.
-- **The dashboard has one account, not a user table.** It is built for a
+- **Configuration is Discord-only.** The bot has no web panel; it is built for a
   self-hosted bot with one operator.
-- **The bearer token and the dashboard session cross the network in clear over
+- **The bearer token crosses the network in clear over
   `http`.** Locally that is fine; expose the port only behind TLS.
 - **Logging cannot name the actor without View Audit Log.** The event is still
   logged, just without the moderator's name.
@@ -600,9 +575,9 @@ MIT. See [LICENSE](LICENSE).
 This is a fork of [PaSymPa/discord-mcp](https://github.com/PaSympa/discord-mcp) by
 Léandre Moreau. The 99 tools in the imported baseline are that project's work,
 preserved unchanged, including their original copyright notice — see
-[NOTICE](NOTICE). The 78 added tools, the bot, the dashboard, the safety layer and
+[NOTICE](NOTICE). The 78 added tools, the bot, the safety layer and
 the documentation are new in this fork.
 
 [docs/CREDITS.md](docs/CREDITS.md) records the other open-source bots studied
-while designing the bot and dashboard layers, and states plainly that no code was
+while designing the bot layer, and states plainly that no code was
 copied from any of them.

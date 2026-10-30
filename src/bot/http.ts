@@ -20,12 +20,6 @@ export interface HttpControlPlaneOptions {
   getStatus: () => Record<string, unknown>;
   /** Extra keys merged into `GET /health`, for a richer uptime check. */
   extraHealth?: () => Record<string, unknown>;
-  /**
-   * Optional dashboard handler, tried before the bearer check because a browser
-   * cannot attach an Authorization header to a page navigation. Returns true when
-   * it answered the request.
-   */
-  dashboard?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
 }
 
 /** Constant-time string compare that tolerates length mismatch. */
@@ -87,7 +81,6 @@ export function createHttpControlPlane(opts: HttpControlPlaneOptions): Server {
         });
       }
 
-      if (opts.dashboard && (await opts.dashboard(req, res))) return;
 
       const header = req.headers.authorization ?? "";
       const presented = header.startsWith("Bearer ") ? header.slice(7) : "";
@@ -109,7 +102,7 @@ export function createHttpControlPlane(opts: HttpControlPlaneOptions): Server {
 
       return json(res, 404, {
         error: "not found",
-        routes: ["/health", "/status", "/mcp", ...(opts.dashboard ? ["/", "/api/*"] : [])],
+        routes: ["/health", "/status", "/mcp"],
       });
     } catch (err) {
       opts.logger.error("http request failed", { error: (err as Error).message });
@@ -121,7 +114,7 @@ export function createHttpControlPlane(opts: HttpControlPlaneOptions): Server {
   server.listen(opts.port, opts.host, () => {
     opts.logger.info("http control plane listening", {
       url: `http://${opts.host}:${opts.port}`,
-      routes: ["/health", "/status", "/mcp", ...(opts.dashboard ? ["/dashboard"] : [])],
+      routes: ["/health", "/status", "/mcp"],
     });
   });
 

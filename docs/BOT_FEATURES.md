@@ -3,7 +3,7 @@
 Everything the bot does on its own, without an AI in the loop: welcome messages,
 autoroles, levels, logging, moderation, tickets, giveaways, starboard, temporary
 voice channels and the autoresponder. All of it is configured from the
-[dashboard](DASHBOARD.md) or with `/config`, and all of it is off until you turn it
+`/config`, and all of it is off until you turn it
 on.
 
 A bot that starts welcoming, logging and levelling the moment it joins a server is
@@ -12,7 +12,7 @@ sensible default.
 
 ## Turning a feature on
 
-From the dashboard, or:
+From Discord:
 
 ```
 /config set fonction:Niveaux actif:true
@@ -68,7 +68,7 @@ Two reasons a role is not granted, and both are logged with the reason:
 - The role sits **at or above the bot's highest role**. Move the bot's role up.
 
 The age gate exists because a fresh account is the cheapest way to raid a server,
-and the join window is when the damage happens. The dashboard only offers roles the
+and the join window is when the damage happens. The command only offers roles the
 bot can actually grant, so a misconfiguration is visible before it matters.
 
 ## Levels
@@ -114,7 +114,7 @@ claiming the content was empty.
 
 ## Moderation
 
-`/warn` and the dashboard's moderation panel both go through the same code path, so
+`/warn` and the MCP moderation tools both go through the same code path, so
 the checks are identical. Every action is recorded as a numbered case.
 
 | Action    | Notes                                                      |
@@ -233,5 +233,5 @@ Stated plainly rather than left to be discovered:
   AutoMod rules and Discord's own verification levels cover the common cases.
 - **No reaction to accept the rules.** It is possible with the bot awake, but a
   half-built version that can be bypassed is worse than none.
-- **No web dashboard user accounts.** One operator, one password. See
-  [DASHBOARD.md](DASHBOARD.md) for why.
+- **No web panel.** Everything is configured from Discord with `/config`, so
+  there is no second service to deploy, secure and keep in sync.
