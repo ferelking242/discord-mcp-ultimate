@@ -1,10 +1,44 @@
 # Changelog
 
+## 3.1.0 — Bot and dashboard
+
+### Added
+
+**Server bot** (`src/bot/`) — one process, one gateway connection, running the
+whole server: welcome and goodbye, autoroles with an account-age gate, levels on
+the MEE6 curve with role rewards and a leaderboard, logging for 17 event types,
+moderation with numbered cases, tickets with a transcript before deletion,
+giveaways with an automatic draw, a starboard, temporary voice channels, an
+autoresponder, and reaction roles. Nine slash commands.
+
+**Web dashboard** (`src/dashboard/`) — served by the bot process on the MCP port,
+so there is no second service and no database. scrypt password, signed HttpOnly
+session cookie, CSRF token on every mutation, `SameSite=Strict`, a CSP with no
+inline script, and per-address login throttling. Refuses to start without a
+password.
+
+**Storage** (`src/bot/store.ts`) — every store is a JSON document written to a
+temp file and renamed over the target, so a crash mid-write leaves the previous
+version intact. Change detection compares a content digest, because an mtime
+misses two writes in the same millisecond.
+
+### Fixed
+
+- The dashboard answered 404 for `/mcp`, which made the bearer-authenticated MCP
+  transport unreachable when both shared a port.
+- `expandTemplate` threw on a member-like object that carried only an id.
+
+### Tests
+
+282 tests, up from 193.
+
+---
+
 ## 3.0.0 — Discord MCP Ultimate
 
-Fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) 2.2.0 (MIT).
+Fork of [PaSymPa/discord-mcp](https://github.com/PaSympa/discord-mcp) 2.2.0 (MIT).
 The 99 tools in the imported baseline are preserved unchanged. This release adds
-73 tools, taking the total to 172, and introduces a safety layer the new tools go
+78 tools, taking the total to 177, and introduces a safety layer the new tools go
 through.
 
 ### Added

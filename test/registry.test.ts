@@ -86,3 +86,21 @@ test("assertAllowedGuild enforces the allow-list lazily and ignores null", () =>
   }
   assertAllowedGuild("222222222222222222");
 });
+
+test("the advertised tool count matches the documentation", () => {
+  // The README, server.json and docs/TOOL_AUDIT.md all state a count. This pins it,
+  // so adding a tool without updating the docs fails the build instead of shipping a
+  // number that no longer describes the server.
+  const definitions = selectModules().flatMap((m) => m.definitions);
+  assert.equal(definitions.length, 177);
+  const names = definitions.map((d) => d.name);
+  assert.equal(new Set(names).size, names.length, "every tool name must be unique");
+});
+
+test("every advertised tool has a description and a title a model can choose on", () => {
+  for (const def of selectModules().flatMap((m) => m.definitions)) {
+    assert.ok(def.description && def.description.length >= 20, `${def.name} needs a description`);
+    // `title` belongs in `annotations` per the MCP spec, not at the definition root.
+    assert.ok(def.annotations?.title, `${def.name} needs an annotations.title`);
+  }
+});

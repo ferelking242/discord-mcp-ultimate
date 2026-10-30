@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ferelking242/discord-mcp-ultimate",
-  "description": "A Discord MCP server with 172 tools: server administration, Unicode name styling, a resumable server architect, AutoMod, emoji and sticker management, structure backup and diagnostics",
+  "description": "A Discord MCP server with 177 tools: server administration, Unicode name styling, a resumable server architect, AutoMod, emoji and sticker management, structure backup and diagnostics",
   "repository": {
     "url": "https://github.com/ferelking242/discord-mcp-ultimate",
     "source": "github"

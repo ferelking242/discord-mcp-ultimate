@@ -25,7 +25,11 @@ function hash(password) {
 
 async function prompt(question) {
   // Echo off, so the password does not land in the terminal's scrollback.
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true,
+  });
   process.stdout.write(question);
   const stdin = process.stdin;
   const wasRaw = stdin.isRaw;

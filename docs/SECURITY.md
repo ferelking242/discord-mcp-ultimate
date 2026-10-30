@@ -292,6 +292,6 @@ MIT licensed, and the original copyright notice is preserved in [LICENSE](../LIC
 
 The 99 tools in the imported baseline were written upstream and are preserved
 unchanged, including their `dry_run` safety convention. The safety layer described
-above is new in this fork. It applies to the 73 added tools; the imported tools
+above is new in this fork. It applies to the 78 added tools; the imported tools
 keep their original behaviour, which `test/dry-run.test.ts` and
 `test/mass-op-safety.test.ts` pin so a change to it fails the build.
