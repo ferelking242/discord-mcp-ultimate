@@ -27,7 +27,9 @@
     "format:check": "prettier --check .",
     "test": "node --import tsx --import ./test/env-setup.ts --test test/*.test.ts",
     "version": "node scripts/sync-version.js && git add server.json",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "bot": "tsc && node dist/bot/index.js",
+    "bot:start": "node dist/bot/index.js"
   },
   "keywords": [
     "discord",
@@ -41,7 +43,7 @@
     "windsurf",
     "claude-desktop"
   ],
-  "author": "ferelking242 (fork of PaSympa/discord-mcp by Léandre Moreau)",
+  "author": "ferelking242 (fork of PaSympa/discord-mcp by L\u00e9andre Moreau)",
   "license": "MIT",
   "repository": {
     "type": "git",

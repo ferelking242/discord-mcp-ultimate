@@ -6,6 +6,7 @@ import {
   Guild,
   GuildChannel,
   Options,
+  Partials,
   PermissionsBitField,
   Role,
   type GuildTextBasedChannel,
@@ -44,6 +45,13 @@ function envEnabled(name: string): boolean {
 
 const messageContentEnabled = envEnabled("DISCORD_MESSAGE_CONTENT");
 const guildMembersEnabled = envEnabled("DISCORD_GUILD_MEMBERS");
+/**
+ * The long-running bot process needs reaction events, which the MCP tool surface
+ * does not. Off by default so a stdio user does not request an intent they never
+ * use; the bot turns it on and shares this one client rather than opening a second
+ * gateway connection with the same token.
+ */
+const reactionIntentsEnabled = envEnabled("DISCORD_REACTION_INTENTS");
 
 export const discord = new Client({
   // No GuildMessages: nothing consumes MessageCreate, yet it caches every message plus
@@ -53,7 +61,13 @@ export const discord = new Client({
     GatewayIntentBits.GuildScheduledEvents,
     ...(messageContentEnabled ? [GatewayIntentBits.MessageContent] : []),
     ...(guildMembersEnabled ? [GatewayIntentBits.GuildMembers] : []),
+    ...(reactionIntentsEnabled ? [GatewayIntentBits.GuildMessageReactions] : []),
   ],
+  // Partials are fixed at construction: a reaction on a message sent before this
+  // process started arrives partial, and cannot be resolved without them.
+  ...(reactionIntentsEnabled
+    ? { partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.User] }
+    : {}),
   rest: { retries: 3, timeout: 15_000 },
   sweepers: {
     ...Options.DefaultSweeperSettings,

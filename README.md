@@ -2,7 +2,7 @@
 
 # Discord MCP Ultimate
 
-**A Discord MCP server with 174 tools — full server administration, driven by natural language**
+**A Discord MCP server with 177 tools, plus a 24/7 bot — full server administration, driven by natural language**
 
 [![License](https://img.shields.io/github/license/ferelking242/discord-mcp-ultimate)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-green)](https://nodejs.org)
@@ -12,6 +12,10 @@
 Manage an entire Discord server from **Claude Desktop**, **Claude Code**, **Cursor**, **VS Code Copilot**, or any MCP-compatible client.
 Messages, channels, roles, permissions, moderation, server settings, AutoMod, emoji and stickers, and a server architect that builds a structure from a plan.
 
+The same repository ships a **long-running bot** (`npm run bot`) that keeps one gateway connection open:
+reaction roles, welcome DMs, and the MCP tool surface served over authenticated HTTP so a remote agent can drive it.
+See [docs/BOT.md](docs/BOT.md).
+
 </div>
 
 ---
@@ -19,14 +23,14 @@ Messages, channels, roles, permissions, moderation, server settings, AutoMod, em
 ## What this is
 
 A fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) 2.2.0, MIT licensed.
-The 99 tools from that baseline are **preserved unchanged**. This fork adds 75
-tools, taking the total to 174, and adds a safety layer that the new tools go
+The 99 tools from that baseline are **preserved unchanged**. This fork adds 78
+tools, taking the total to 177, and adds a safety layer that the new tools go
 through.
 
 |                                                                     | Baseline 2.2.0      | This fork           |
 | ------------------------------------------------------------------- | ------------------- | ------------------- |
-| Tools                                                               | 99                  | **174**             |
-| Server settings (name, icon, banner, Community, widget, onboarding) | —                   | 24 tools            |
+| Tools                                                               | 99                  | **177**             |
+| Server settings (name, icon, banner, Community, widget, onboarding) | —                   | 25 tools            |
 | Bot profile management                                              | —                   | 8 tools             |
 | Unicode name styling                                                | —                   | 4 tools             |
 | Server architect (plan, compare, apply, repair)                     | —                   | 10 tools            |
@@ -36,6 +40,8 @@ through.
 | Diagnostics and audit trail                                         | —                   | 6 tools             |
 | Scheduling and announcements                                        | —                   | 4 tools             |
 | Native polls                                                        | —                   | 1 tool              |
+| Reaction-role menus (needs the bot)                                 | —                   | 3 tools             |
+| 24/7 bot: reaction roles, welcome DMs, HTTP MCP                     | —                   | `src/bot/`          |
 | Preview-before-apply gating                                         | partial (`dry_run`) | on every added tool |
 
 Full inventory: [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md).
@@ -67,6 +73,20 @@ npm ci && npm run build
 
 No bot yet? [docs/INSTALLATION.md](docs/INSTALLATION.md) covers creating the
 application, the intents, the exact permission list, and the invite URL.
+
+### Run it 24/7 as a bot
+
+```bash
+npm run bot          # build, then start bot + HTTP MCP
+```
+
+```bash
+MCP_HTTP_ENABLED=true MCP_HTTP_TOKEN=$(openssl rand -hex 32) npm run bot:start
+```
+
+This exposes `/health` (no auth), `/status` and `/mcp` (bearer token). The full
+deployment guide — systemd, Docker, reverse proxy, troubleshooting — is
+[docs/BOT.md](docs/BOT.md).
 
 Once connected, ask it to run `discord_verify_setup` — it takes no arguments and
 tells you whether the token, the intents, the toolsets and the connection are all
@@ -309,13 +329,13 @@ applied. Applying requires a second call with an explicit confirmation.
 
 ## En français
 
-**Discord MCP Ultimate** est un serveur MCP pour Discord, avec **174 outils**,
+**Discord MCP Ultimate** est un serveur MCP pour Discord, avec **177 outils** et un bot 24h/24,
 pilotable en langage naturel depuis Claude Desktop, Claude Code, Cursor, VS Code
 Copilot ou tout client compatible MCP.
 
 C'est un fork de [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp)
 version 2.2.0 (licence MIT). Les **99 outils d'origine sont conservés à
-l'identique**. Ce fork en ajoute **75**, pour un total de 174.
+l'identique**. Ce fork en ajoute **78**, pour un total de 177.
 
 ### Ce qui a été ajouté
 
@@ -426,7 +446,7 @@ poignée de main MCP et vérifie la liste d'outils annoncée.
 
 | Document                                     | Contents                                                                                                      |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 174 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply |
+| [docs/TOOL_AUDIT.md](docs/TOOL_AUDIT.md)     | All 177 tools: parameters, permissions checked, hints, output schemas, and the Discord limitations that apply |
 | [docs/NEW_TOOLS.md](docs/NEW_TOOLS.md)       | The 73 added tools, module by module, with the design decisions                                               |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Bot creation, intents, the full permission list, every client config, verification                            |
 | [docs/SECURITY.md](docs/SECURITY.md)         | Credential handling, preview/confirm gates, permission preflight, prompt-injection boundaries                 |

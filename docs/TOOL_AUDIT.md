@@ -21,13 +21,13 @@ are counted as _preserved_; everything else is _added_.
 | Metric                                              | Value |
 | --------------------------------------------------- | ----- |
 | Tools in the imported 2.2.0 baseline                | 99    |
-| Tools in this build                                 | 174   |
+| Tools in this build                                 | 177   |
 | Preserved unchanged                                 | 99    |
-| Added                                               | 75    |
+| Added                                               | 78    |
 | Removed                                             | 0     |
-| Read-only tools (`readOnlyHint`)                    | 65    |
-| Tools flagged `destructiveHint`                     | 25    |
-| Tools advertising an `outputSchema`                 | 108   |
+| Read-only tools (`readOnlyHint`)                    | 66    |
+| Tools flagged `destructiveHint`                     | 26    |
+| Tools advertising an `outputSchema`                 | 111   |
 | Tools with a description shorter than 20 characters | 0     |
 | Tools whose `inputSchema` is not an object root     | 0     |
 
@@ -348,6 +348,23 @@ which return `applied: false` and say so in the payload.
 | `discord_list_scheduled_tasks`  | —                                                                                                                                                                   | —                      | read-only  | yes          |
 | `discord_cancel_scheduled_task` | `task_id`                                                                                                                                                           | —                      | idempotent | yes          |
 | `discord_publish_announcement`  | `channel_id`, `title`, `body`, color, fields, footer, ping, ping_role_id, crosspost                                                                                 | —                      | —          | yes          |
+
+### `src/tools/reactionRoles.ts` — 3 tools (0 preserved, 3 added)
+
+Reaction-role menus. The tools write the mappings; the bot process in `src/bot/`
+owns the gateway and honours them. A mapping reaches the running bot within two
+seconds without a restart, because the bot watches the file these tools write.
+
+| Tool                                | Required params                              | Bot permission checked | Hints       | outputSchema |
+| ----------------------------------- | -------------------------------------------- | ---------------------- | ----------- | ------------ |
+| `discord_create_reaction_role_menu` | `guild_id`, `channel_id`, `title`, `entries` | `ManageRoles`          | —           | yes          |
+| `discord_list_reaction_role_menus`  | guild_id                                     | —                      | read-only   | yes          |
+| `discord_delete_reaction_role_menu` | `channel_id`, `message_id`                   | —                      | destructive | yes          |
+
+`discord_create_reaction_role_menu` refuses, before posting anything, any role that
+is managed by an integration or that sits at or above the bot's highest role. The
+refusal is returned in `warnings` with the reason, rather than surfacing later as
+an opaque 50013 on the first member who reacts.
 
 ## Known limitations, by area
 

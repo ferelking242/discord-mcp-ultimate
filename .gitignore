@@ -16,3 +16,6 @@ AUDIT_VERIFICATION.md
 
 # Local operational helpers (never published)
 .ops/
+
+# Bot runtime state (reaction-role mappings)
+.data/

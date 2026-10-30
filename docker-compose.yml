@@ -1,0 +1,29 @@
+# Deployment for the long-running bot.
+#
+#   cp .env.example .env      # fill in DISCORD_TOKEN, MCP_HTTP_TOKEN
+#   docker compose up -d
+#
+# The default image entrypoint is the stdio server, so this file overrides the
+# command to run the bot, which serves MCP over HTTP as well.
+services:
+  discord-mcp:
+    build: .
+    image: discord-mcp-ultimate
+    command: ["node", "dist/bot/index.js"]
+    env_file: .env
+    environment:
+      # 0.0.0.0 inside the container; the published port below stays on loopback.
+      MCP_HTTP_ENABLED: "true"
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT: "3000"
+    # Bound to loopback: the bearer token crosses the network in clear over http.
+    # Put a TLS reverse proxy in front if the client is not on this host.
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # Reaction-role menus survive a container replacement.
+      - discord-mcp-data:/app/.data
+    restart: unless-stopped
+
+volumes:
+  discord-mcp-data:

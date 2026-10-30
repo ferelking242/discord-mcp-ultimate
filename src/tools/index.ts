@@ -33,6 +33,7 @@ import expressions from "./expressions.js";
 import backup from "./backup.js";
 import diagnostics from "./diagnostics.js";
 import scheduler from "./scheduler.js";
+import reactionRoles from "./reactionRoles.js";
 
 /** Every toolset, keyed by the name used in the `DISCORD_MCP_TOOLSETS` env var. */
 const allToolsets: Record<string, ToolModule> = {
@@ -59,6 +60,7 @@ const allToolsets: Record<string, ToolModule> = {
   backup,
   diagnostics,
   scheduler,
+  reaction_roles: reactionRoles,
 };
 
 /**

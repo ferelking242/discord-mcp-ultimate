@@ -1,6 +1,6 @@
 # New tools — what was added, and why
 
-This document covers the 75 tools added on top of the 99 imported from
+This document covers the 78 tools added on top of the 99 imported from
 PaSympa/discord-mcp 2.2.0. For the full inventory, including the preserved
 tools, see [TOOL_AUDIT.md](./TOOL_AUDIT.md).
 
@@ -344,6 +344,53 @@ locally with a clear message instead of a Discord `50035` form error.
 
 ---
 
+## 12. Reaction-role menus — `src/tools/reactionRoles.ts`
+
+**3 tools.** `discord_create_reaction_role_menu`, `discord_list_reaction_role_menus`,
+`discord_delete_reaction_role_menu`.
+
+These are the MCP half of a feature whose other half is the bot in `src/bot/`. The
+tools post the menu, add each reaction, and record the emoji→role mapping; the bot
+process owns the gateway and grants the roles. The two processes meet at one JSON
+file that the bot watches, so a menu an agent builds takes effect within two
+seconds and needs no restart.
+
+Why the split: a stdio MCP server only runs while its host is driving it. There is
+nothing to receive a reaction event between tool calls, so a reaction-role feature
+cannot live in the tool process alone. `npm run bot` is the process that stays awake.
+
+`discord_create_reaction_role_menu` validates every role before posting: a role
+managed by an integration, or one at or above the bot's highest role, is reported in
+`warnings` and skipped. Discord would refuse the grant later anyway, and the failure
+would land on an ordinary member rather than on the agent that built the menu.
+
+Covered by `test/bot.test.ts`.
+
+---
+
+## The 24/7 bot — `src/bot/`
+
+Not a toolset, but the reason the reaction-role tools can work at all.
+
+| File               | Responsibility                                                          |
+| ------------------ | ----------------------------------------------------------------------- |
+| `config.ts`        | Strict env parsing; refuses to start an unauthenticated HTTP port       |
+| `handlers.ts`      | Reaction, role and welcome logic, with no client or env dependency      |
+| `reactionRoles.ts` | Atomic JSON store with a watcher, so the MCP side reaches the bot       |
+| `rateLimit.ts`     | Per-member sliding window, so one member cannot rate-limit everyone     |
+| `http.ts`          | `/health`, `/status`, `/mcp` with a constant-time bearer check          |
+| `index.ts`         | Wires the above to the shared discord.js client and the signal handlers |
+
+The bot and the MCP server share **one** discord.js client. A second client with the
+same token would open a second gateway session and double every event. Reaction
+intents are therefore opt-in through `DISCORD_REACTION_INTENTS`, which the bot sets
+and a stdio user does not need.
+
+Covered by `test/bot.test.ts` (unit) and `test/http.test.ts` (a real socket, a real
+MCP client over HTTP).
+
+---
+
 ## Environment variables added
 
 None. Every new tool uses `DISCORD_TOKEN`, `DISCORD_ALLOWED_GUILDS`,
@@ -353,7 +400,10 @@ None. Every new tool uses `DISCORD_TOKEN`, `DISCORD_ALLOWED_GUILDS`,
 
 The new modules are selectable by name, alongside the preserved ones:
 `guildSettings`, `botProfile`, `style`, `serverArchitect`, `automod`,
-`expressions`, `backup`, `diagnostics`, `scheduler`.
+`expressions`, `backup`, `diagnostics`, `scheduler`, `reaction_roles`.
 
 Setting `DISCORD_MCP_TOOLSETS=style,serverArchitect` exposes 14 tools and nothing
-else — useful for keeping a model's context small and its options narrow.
+else — useful for keeping a model's context small and its options narrow. The
+toolset name is the key in `src/tools/index.ts`, not the file name: it is
+`reaction_roles` (underscore), because the env var is a comma-separated list and a
+name that cannot be confused with a separator is worth the small inconsistency.

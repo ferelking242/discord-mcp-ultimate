@@ -133,7 +133,32 @@ docker run --rm -i \
 ```
 
 Pass any other variables with additional `-e` flags. Use `-i` so stdin stays
-open: stdio is the transport.
+open: stdio is the transport. That image defaults to the stdio server, so it is a
+drop-in replacement for the upstream one.
+
+### The 24/7 bot, in Docker
+
+```bash
+cp .env.example .env      # fill in DISCORD_TOKEN and MCP_HTTP_TOKEN
+docker compose up -d
+```
+
+`docker-compose.yml` runs the bot, which also serves MCP over HTTP on
+`127.0.0.1:3000`. It is bound to loopback on purpose: the bearer token crosses the
+network in clear over `http`. Put a TLS reverse proxy in front before exposing it.
+
+The equivalent without compose:
+
+```bash
+docker build -t discord-mcp-ultimate .
+docker run -d --name discord-mcp --restart unless-stopped \
+  --env-file .env -p 127.0.0.1:3000:3000 \
+  -v discord-mcp-data:/app/.data \
+  discord-mcp-ultimate node dist/bot/index.js
+```
+
+The volume keeps the reaction-role menus across a container replacement.
+Full deployment notes, including systemd: [BOT.md](BOT.md).
 
 ---
 
@@ -305,3 +330,13 @@ Show me a preview before deleting these channels: 111..., 222...
 
 Destructive requests return a preview first. The assistant has to call the tool
 again with an explicit confirmation before anything is deleted.
+
+Reaction-role menus need the bot process:
+
+```
+Create a role menu in #roles titled "Pick your roles": ✅ for Announcements,
+🔥 for Gaming, 🎨 for Art.
+```
+
+The bot must be running (`npm run bot`). It picks the new menu up within two
+seconds, without a restart.

@@ -11,3 +11,4 @@ dist
 .prettierrc
 eslint.config.mjs
 test
+.data
