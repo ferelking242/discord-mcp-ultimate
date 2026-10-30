@@ -246,7 +246,36 @@ previews that first.
 
 ---
 
-## 13. Reporting a vulnerability
+## 13. Locking server structure (separators, categories)
+
+Renaming, moving or deleting a channel requires the `Manage Channels` permission.
+Creating, editing or deleting a role requires `Manage Roles`. Neither is granted
+to `@everyone` or to any member-facing role on a server set up by this project,
+so a member cannot touch the separator channels, the categories, or the roles —
+they simply do not have the permission to do it.
+
+Two things worth knowing when you check this yourself:
+
+- **The bot's own role must stay high in the hierarchy.** A bot can only manage
+  roles positioned below its highest role. `discord_set_role_position` changes
+  that, and `discord_find_permission_problems` flags a bot that is too low.
+- **Verify with the audit tool, not by eye.** `discord_audit_permissions` lists
+  every channel that carries overwrites and the allow/deny set of each role and
+  member on it. `discord_explain_permissions` resolves a specific member's
+  _effective_ permissions in a channel, in Discord's own resolution order. A
+  channel overwrite that grants `Manage Channels` would defeat the role-level
+  lock, so check for it there rather than trusting the role list alone.
+
+There is currently **no tool that writes an arbitrary channel permission
+overwrite** — `discord_lock_channel_permissions` syncs a channel to its parent
+category, and `discord_reset_channel_permissions` clears overwrites. Adding a
+raw overwrite editor would hand an autonomous agent a direct path to granting
+itself structural permissions, so it is deliberately left out. If you need one,
+add it yourself with the preview/confirm gate from section 3.
+
+---
+
+## 14. Reporting a vulnerability
 
 Open an issue at
 <https://github.com/ferelking242/discord-mcp-ultimate/issues> or, for anything
@@ -256,7 +285,7 @@ triggered the behaviour.
 
 ---
 
-## 14. A note on the upstream project
+## 15. A note on the upstream project
 
 This project is a fork of [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp),
 MIT licensed, and the original copyright notice is preserved in [LICENSE](../LICENSE).
